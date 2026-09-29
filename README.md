@@ -1,14 +1,14 @@
 # CommerceHub
 Visão geral e objetivo
 O CommerceHub será uma plataforma de e-commerce demonstrativa, orientada a eventos, formada por microsserviços Java/Quarkus que se comunicam por APIs REST e Apache Kafka. O projeto é deliberadamente pequeno no domínio, mas rico em engenharia de software para funcionar como prova pública de competência técnica.
-1 Objetivos
+<br>1 Objetivos
 Demonstrar experiência prática com Java e Quarkus em backend.
 Demonstrar arquitetura de microsserviços e comunicação síncrona e assíncrona.
 Demonstrar Kafka, idempotência e tratamento de falhas em processamento de eventos.
 Demonstrar Oracle/SQL, testes unitários, testes de API e testes de integração.
 Demonstrar containers, OpenShift, CI/CD, GitOps e observabilidade distribuída.
 Produzir documentação, diagramas, decisões arquiteturais e evidências visuais utilizáveis na Upwork.
-2 Fora do escopo inicial
+<br>2 Fora do escopo inicial
 Frontend web ou aplicativo mobile.
 Pagamento real com provedor externo.
 Integrações com empresas reais ou credenciais reais.
