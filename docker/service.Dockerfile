@@ -26,7 +26,8 @@ LABEL org.opencontainers.image.title="commercehub-${SERVICE}" \
       org.opencontainers.image.description="CommerceHub ${SERVICE}"
 
 ENV LANGUAGE="en_US:en" \
-    JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager" \
+    TZ="UTC" \
+    JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Duser.timezone=UTC -Djava.util.logging.manager=org.jboss.logmanager.LogManager" \
     JAVA_APP_JAR="/deployments/quarkus-run.jar"
 
 COPY --from=build --chown=185 /workspace/services/${SERVICE}/target/quarkus-app/lib/ /deployments/lib/

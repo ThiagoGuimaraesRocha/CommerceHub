@@ -61,7 +61,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: product-service
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.1.0
+        VERSION: 0.2.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.2.0
     environment:
       DB_URL: *db-url
       PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
