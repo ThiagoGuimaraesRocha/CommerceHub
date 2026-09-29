@@ -1,0 +1,182 @@
+{
+  "info": {
+    "name": "CommerceHub",
+    "_postman_id": "0b7f6a52-3f5e-4d8e-9a57-6c1c3c2f1a01",
+    "description": "Requests for the CommerceHub microservices. Import together with `CommerceHub.local.postman_environment.json`.\n\nRun the whole collection (Collection Runner or `newman`) in order: requests share `productId`, `productSku` and `productVersion` through collection variables.\n\nErrors follow RFC 9457 (`application/problem+json`). Monetary values use scale 4.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "productId", "value": "" },
+    { "key": "productSku", "value": "" },
+    { "key": "productVersion", "value": "0" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "User Service readiness",
+          "request": { "method": "GET", "url": "{{userServiceUrl}}/q/health/ready" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
+          ] } }]
+        },
+        {
+          "name": "Product Service readiness",
+          "request": { "method": "GET", "url": "{{productServiceUrl}}/q/health/ready" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
+          ] } }]
+        },
+        {
+          "name": "Order Service readiness",
+          "request": { "method": "GET", "url": "{{orderServiceUrl}}/q/health/ready" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
+          ] } }]
+        },
+        {
+          "name": "Inventory Service readiness",
+          "request": { "method": "GET", "url": "{{inventoryServiceUrl}}/q/health/ready" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "Product Service",
+      "description": "Product catalog. OpenAPI: {{productServiceUrl}}/q/openapi — Swagger UI: {{productServiceUrl}}/q/swagger-ui",
+      "item": [
+        {
+          "name": "Create product",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "const suffix = Date.now().toString(36).toUpperCase();",
+              "pm.collectionVariables.set('productSku', 'KB-MECH-' + suffix);"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created with Location', () => { pm.response.to.have.status(201); pm.response.to.have.header('Location'); });",
+              "const body = pm.response.json();",
+              "pm.test('price has scale 4', () => pm.expect(pm.response.text()).to.include('\"price\":349.9000'));",
+              "pm.test('defaults', () => { pm.expect(body.currencyCode).to.eql('BRL'); pm.expect(body.active).to.eql(true); pm.expect(body.version).to.eql(0); });",
+              "pm.collectionVariables.set('productId', body.id);",
+              "pm.collectionVariables.set('productVersion', body.version);"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{productServiceUrl}}/api/v1/products",
+            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"Hot-swappable mechanical keyboard with brown switches.\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 349.9,\n  \"currencyCode\": \"BRL\"\n}" }
+          }
+        },
+        {
+          "name": "Get product by id",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('same product', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('productId')));"
+          ] } }],
+          "request": { "method": "GET", "url": "{{productServiceUrl}}/api/v1/products/{{productId}}" }
+        },
+        {
+          "name": "List products (filter + pagination)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.test('page shape', () => { pm.expect(body).to.have.keys('items', 'page', 'size', 'totalItems', 'totalPages'); });",
+            "pm.test('only PERIPHERALS', () => body.items.forEach(p => pm.expect(p.categoryCode).to.eql('PERIPHERALS')));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{productServiceUrl}}/api/v1/products?category=PERIPHERALS&active=true&page=0&size=20",
+              "host": ["{{productServiceUrl}}"],
+              "path": ["api", "v1", "products"],
+              "query": [
+                { "key": "category", "value": "PERIPHERALS" },
+                { "key": "active", "value": "true" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update product (optimistic locking)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const body = pm.response.json();",
+            "pm.test('version incremented', () => pm.expect(body.version).to.eql(Number(pm.collectionVariables.get('productVersion')) + 1));",
+            "pm.test('new price', () => pm.expect(pm.response.text()).to.include('\"price\":329.9000'));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"Hot-swappable mechanical keyboard with brown switches.\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 329.9,\n  \"currencyCode\": \"BRL\",\n  \"active\": true,\n  \"version\": {{productVersion}}\n}" }
+          }
+        },
+        {
+          "name": "Update with stale version (409)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('409 stale-version', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:stale-version'); });"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 1,\n  \"currencyCode\": \"BRL\",\n  \"active\": true,\n  \"version\": {{productVersion}}\n}" }
+          }
+        },
+        {
+          "name": "Create with duplicate SKU (409)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('409 duplicate-sku', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:duplicate-sku'); });",
+            "pm.test('problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{productServiceUrl}}/api/v1/products",
+            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Duplicate\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 10\n}" }
+          }
+        },
+        {
+          "name": "Create with invalid fields (400)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('400 validation-error', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:validation-error'); });",
+            "pm.test('lists violated fields', () => { const fields = pm.response.json().violations.map(v => v.field); pm.expect(fields).to.include.members(['sku', 'price']); });"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{productServiceUrl}}/api/v1/products",
+            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"invalid sku\",\n  \"name\": \"Invalid\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": -1\n}" }
+          }
+        },
+        {
+          "name": "Get unknown product (404)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404 product-not-found', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:product-not-found'); });"
+          ] } }],
+          "request": { "method": "GET", "url": "{{productServiceUrl}}/api/v1/products/00000000-0000-0000-0000-000000000000" }
+        },
+        {
+          "name": "Deactivate product (soft delete)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+          ] } }],
+          "request": { "method": "DELETE", "url": "{{productServiceUrl}}/api/v1/products/{{productId}}" }
+        },
+        {
+          "name": "Get deactivated product",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('still readable, inactive', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().active).to.eql(false); });"
+          ] } }],
+          "request": { "method": "GET", "url": "{{productServiceUrl}}/api/v1/products/{{productId}}" }
+        }
+      ]
+    }
+  ]
+}

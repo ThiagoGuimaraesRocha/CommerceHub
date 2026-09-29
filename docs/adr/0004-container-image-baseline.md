@@ -22,7 +22,8 @@ tools and credentials, and able to run on OpenShift, which starts containers wit
 
 ## Consequences
 
-- The plan document suggested `eclipse-temurin` JRE as runtime; UBI OpenJDK was chosen instead for OpenShift
-  compatibility. Both remain valid; the choice can be revisited.
+- The plan document suggested `eclipse-temurin` JRE with `USER 1001` as runtime; UBI OpenJDK was chosen
+  instead for OpenShift compatibility and confirmed by the project owner on 2026-09-29.
+- The JVM and container run in UTC (`TZ=UTC`, `-Duser.timezone=UTC`).
 - Images do not depend on source code mounted as volumes.
 - Digests will be recorded when images are published to GHCR by the CI pipeline.

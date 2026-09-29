@@ -1,157 +1,196 @@
 # CommerceHub
 
+[![CI](https://github.com/ThiagoGuimaraesRocha/CommerceHub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThiagoGuimaraesRocha/CommerceHub/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-007396)
+![Quarkus 3.33 LTS](https://img.shields.io/badge/Quarkus-3.33%20LTS-4695EB)
+![Oracle Database Free](https://img.shields.io/badge/Oracle-Database%20Free%2023-F80000)
+
 **Event-driven e-commerce microservices platform built with Java 21, Quarkus, Oracle and Apache Kafka.**
 
 CommerceHub is a public portfolio project. The business domain is intentionally small (customers, products,
-orders and inventory) so that the focus stays on engineering: service boundaries, REST and event-driven
-integration, idempotent consumers, automated tests, containers, OpenShift, observability and CI/CD/GitOps.
+orders and inventory) so the focus stays on engineering: clear service boundaries, REST and event-driven
+integration, an order saga with idempotent consumers, automated tests on a real Oracle database, containers,
+OpenShift, observability and CI/CD/GitOps.
 
 > All code, data and names in this repository are fictional and were created exclusively for this project.
+
+## Highlights
+
+- **Four Quarkus microservices**, each owning its own Oracle schema (database per service).
+- **Order saga** over Kafka with a documented envelope, events vs commands, transactional outbox and
+  idempotent consumers ([event contracts](docs/events/README.md)).
+- **RFC 9457 Problem Details**, optimistic locking, versioned REST APIs, OpenAPI + Swagger UI.
+- **Tests on real Oracle**: unit (JUnit 5 + Mockito), API (REST Assured) and integration tests with
+  Oracle Database Free started by Quarkus Dev Services.
+- **Reproducible local stack** with Docker Compose, pinned image tags and digests, no secrets in Git.
+- **Architecture decisions recorded** as ADRs.
 
 ## Status
 
 | Sprint | Scope | Status |
 | --- | --- | --- |
 | S1 | Foundation: monorepo, Maven/Quarkus, Oracle, Docker Compose, ADRs | Done |
-| S2 | Product Service: CRUD, Oracle persistence, tests, image | Planned |
-| S3 | Order Service: orders, items, REST integration with Product Service | Planned |
-| S4 | Kafka + Inventory Service: events, stock reservation, idempotency | Planned |
+| S2 | Product Service: CRUD, Flyway, Problem Details, OpenAPI, tests, Postman, CI | Done |
+| S3 | Order Service: orders, items, REST integration with Product Service | Next |
+| S4 | Kafka + Inventory Service: saga, outbox, idempotency, stock admin endpoint | Planned |
 | S5 | User Service + JWT | Planned |
-| S6 | Observability: OpenTelemetry, Jaeger, Prometheus, Grafana | Planned |
-| S7 | OpenShift deployment | Planned |
-| S8 | CI/CD (GitHub Actions, Argo CD, Jenkinsfile) and portfolio polish | Planned |
+| S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Planned |
+| S7 | OpenShift deployment (local MicroShift/OKD) | Planned |
+| S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
 
-Sprint notes live in [`docs/sprints`](docs/sprints) and architecture decisions in [`docs/adr`](docs/adr).
+Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr).
 
 ## Architecture
 
 ```
-                 Client
-                   |
-     OpenShift Route / future API Gateway
-                   |
-   +---------------+----------------+
-   |               |                |
-User Service  Product Service  Order Service ---- Kafka ----> Inventory Service
-   |               |                |                               |
-USER_SCHEMA   PRODUCT_SCHEMA   ORDER_SCHEMA                  INVENTORY_SCHEMA
-   \_______________\________________\_______________________________/
-                          Oracle Database Free
+                     Client (Postman / curl)
+                               |
+              OpenShift Route / future API Gateway
+                               |
+        +----------------------+----------------------+
+        |                      |                      |
+   User Service         Product Service <---REST--- Order Service
+        |                      |                      |      ^
+   USER_SCHEMA          PRODUCT_SCHEMA       OrderConfirmed  |  InventoryReserved /
+                                                      |      |  InventoryReservationFailed
+                                                      v      |
+                                                  +--------------+
+                                                  |    Kafka     |
+                                                  +--------------+
+                                                      |      ^
+                                                      v      |
+                                                  Inventory Service
+                                                         |
+                                                  INVENTORY_SCHEMA
+
+     ORDER_SCHEMA belongs to Order Service. All schemas live in one Oracle Database Free
+     instance (FREEPDB1); no service reads another service's tables.
 ```
 
-- **Database per service**: each service owns one Oracle schema and never reads another service's tables.
-- **Explicit contracts**: services talk through versioned HTTP APIs and JSON events on Kafka.
-- **Configuration from the environment**: no credentials in Git; local secrets live in an ignored `.env` file.
+### Order saga
+
+```
+CREATED --confirm--> CONFIRMED --InventoryReserved--> INVENTORY_RESERVED --> (payment, future) --> COMPLETED
+                         |
+                         +--InventoryReservationFailed--> CANCELLED (INSUFFICIENT_STOCK)
+```
 
 | Service | Responsibility | Schema | Dev port | Container port |
 | --- | --- | --- | --- | --- |
 | `user-service` | Customers and demo JWT authentication | `USER_SCHEMA` | 8081 | 8080 |
-| `product-service` | Catalog, prices and categories | `PRODUCT_SCHEMA` | 8082 | 8080 |
-| `order-service` | Orders, items and order lifecycle | `ORDER_SCHEMA` | 8083 | 8080 |
+| [`product-service`](services/product-service/README.md) | Catalog, prices and categories | `PRODUCT_SCHEMA` | 8082 | 8080 |
+| `order-service` | Orders, items and order lifecycle (saga owner) | `ORDER_SCHEMA` | 8083 | 8080 |
 | `inventory-service` | Stock, reservations, idempotent event consumption | `INVENTORY_SCHEMA` | 8084 | 8080 |
 
-## Tech stack (Sprint 1 baseline)
+## Tech stack
 
-| Component | Version |
+| Area | Technology |
 | --- | --- |
-| Java | 21 (LTS) |
-| Quarkus | 3.33.3.3 (LTS stream) |
-| Maven (via wrapper) | 3.9.16 |
-| Oracle Database Free | `gvenzl/oracle-free:23.26.3-slim-faststart` |
-| Build image | `eclipse-temurin:21.0.12.1_1-jdk-noble` |
-| Runtime image | `registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24` |
+| Language / framework | Java 21, Quarkus 3.33.3.3 (LTS), Quarkus REST, Hibernate ORM with Panache, Hibernate Validator |
+| Data | Oracle Database Free 23 (`gvenzl/oracle-free:23.26.3-slim-faststart`, pinned by digest), Flyway |
+| Messaging | Apache Kafka (Sprint 4) |
+| API docs | SmallRye OpenAPI + Swagger UI, Postman collection |
+| Tests | JUnit 5, Mockito, AssertJ, REST Assured, Quarkus Dev Services (Testcontainers) |
+| Build / CI | Maven Wrapper 3.9.16, GitHub Actions |
+| Containers | Multi-stage Dockerfile, `ubi9/openjdk-21-runtime` (OpenShift-ready), Docker Compose |
 
-## Repository layout
+## Quick start
 
-```
-.
-├── pom.xml                       # parent POM (Quarkus BOM, plugin versions, Java 21 enforcement)
-├── mvnw / .mvn/                  # Maven Wrapper
-├── services/
-│   ├── user-service/
-│   ├── product-service/
-│   ├── order-service/
-│   └── inventory-service/
-├── docker/service.Dockerfile     # single multi-stage Dockerfile shared by every service
-├── docker-compose.yml            # Oracle (default) + application containers (profile "apps")
-├── infra/oracle/init/            # creates one schema per service on the first Oracle start
-├── scripts/dev.sh                # runs a service in Quarkus dev mode with the .env variables
-└── docs/
-    ├── adr/                      # architecture decision records
-    └── sprints/                  # sprint notes and Definition of Done evidence
-```
-
-## Prerequisites
-
-- JDK 21+ (the Maven Wrapper downloads Maven itself)
-- Docker Engine 24+ with Docker Compose v2
-- About 3 GB of free RAM for Oracle Database Free
-
-## Running locally
-
-### 1. Configure local secrets
+Prerequisites: JDK 21+, Docker Engine 24+ with Compose v2, about 4 GB of free RAM.
 
 ```bash
-cp .env.example .env
-# edit .env and replace every "change-me" value
+git clone https://github.com/ThiagoGuimaraesRocha/CommerceHub.git
+cd CommerceHub
+cp .env.example .env                           # replace every "change-me" value
+
+docker compose --profile apps up -d --build    # Oracle + the four services
+docker compose --profile apps ps               # wait until everything is "healthy"
+
+./scripts/seed.sh                              # load demo products through the API
+curl 'http://localhost:8082/api/v1/products?category=PERIPHERALS'
 ```
 
-`.env` is ignored by Git. Oracle only reads these passwords on its **first** start; if you change them later,
-recreate the volume with `docker compose down -v`.
+Swagger UI: <http://localhost:8082/q/swagger-ui>
 
-### 2. Build and test
-
-```bash
-./mvnw verify
-```
-
-Unit/API tests run without a database: the datasource is disabled in the `test` profile.
-
-### 3a. Run everything in containers
-
-```bash
-docker compose --profile apps up -d --build
-docker compose --profile apps ps     # wait until every service is "healthy"
-```
-
-### 3b. Or run Oracle in Docker and a service in Quarkus dev mode (live reload)
+### Development mode (live reload)
 
 ```bash
 docker compose up -d oracle
 ./scripts/dev.sh product-service     # or user-service, order-service, inventory-service
 ```
 
-### 4. Check health
+### Build and test
 
 ```bash
-curl http://localhost:8082/q/health/ready
+./mvnw verify
 ```
 
-```json
-{
-  "status": "UP",
-  "checks": [
-    { "name": "Database connections health check", "status": "UP", "data": { "<default>": "UP" } }
-  ]
-}
-```
+Runs unit, API and integration tests. Services with persistence start a throwaway Oracle container through
+Quarkus Dev Services, so Docker must be running. CI runs the same command on every push and pull request.
 
-| Endpoint | Purpose |
-| --- | --- |
-| `/q/health/live` | Liveness: the process is running |
-| `/q/health/ready` | Readiness: includes the Oracle connection check |
-| `/q/health` | Both |
-
-### Stopping
+### Stop
 
 ```bash
 docker compose --profile apps down       # keep Oracle data
 docker compose --profile apps down -v    # also delete the Oracle volume
 ```
 
-## Configuration
+## API
 
-Every service reads its configuration from `application.properties`, overridable by environment variables.
+| Service | Base path | OpenAPI | Swagger UI |
+| --- | --- | --- | --- |
+| Product | `http://localhost:8082/api/v1/products` | `/q/openapi` | `/q/swagger-ui` |
+
+Conventions ([ADR 0008](docs/adr/0008-http-api-conventions.md)): versioned paths, `application/problem+json`
+errors, money with scale 4, optimistic locking through `version`, soft delete for catalog data.
+
+```bash
+curl -i -X POST http://localhost:8082/api/v1/products \
+  -H 'Content-Type: application/json' \
+  -d '{"sku":"KB-MECH-002","name":"Mechanical Keyboard","categoryCode":"PERIPHERALS","price":349.9}'
+```
+
+```json
+{
+  "id": "17c6cbc4-1865-41bc-b0e7-a99d9d49f572",
+  "sku": "KB-MECH-002",
+  "name": "Mechanical Keyboard",
+  "categoryCode": "PERIPHERALS",
+  "price": 349.9000,
+  "currencyCode": "BRL",
+  "active": true,
+  "version": 0,
+  "createdAt": "2026-09-29T21:00:55.950624Z",
+  "updatedAt": "2026-09-29T21:00:55.950730Z"
+}
+```
+
+### Postman
+
+Import both files from [`postman/`](postman):
+
+- `CommerceHub.postman_collection.json` — health checks and the full product lifecycle, with test scripts
+  that chain `productId` and `version` between requests.
+- `CommerceHub.local.postman_environment.json` — local URLs for the four services.
+
+Run it from the Collection Runner, or from the command line:
+
+```bash
+npx newman run postman/CommerceHub.postman_collection.json -e postman/CommerceHub.local.postman_environment.json
+```
+
+## Events
+
+Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `correlationId`, `causationId`,
+`payload`, ...). Topics, payloads and the saga walkthrough are in [`docs/events`](docs/events/README.md).
+
+| Topic | Messages |
+| --- | --- |
+| `commerce.order.events` | `OrderConfirmed`, `OrderCancelled`, `OrderCompleted` |
+| `commerce.inventory.events` | `InventoryReserved`, `InventoryReservationFailed`, `InventoryReleased` |
+| `commerce.inventory.commands` | `ReleaseInventory` |
+
+## Configuration
 
 | Variable | Default | Used by |
 | --- | --- | --- |
@@ -160,12 +199,47 @@ Every service reads its configuration from `application.properties`, overridable
 | `<SERVICE>_DB_PASSWORD` | none (required) | matching service and Oracle init |
 | `ORACLE_PASSWORD` | none (required) | Oracle `SYS`/`SYSTEM` |
 | `ORACLE_HOST_PORT` | `1521` | host port mapped to Oracle |
-| `GHCR_OWNER` | `local` | image name prefix `ghcr.io/<owner>/commercehub-<service>` |
+| `FLYWAY_MIGRATE_AT_START` | `true` | services with persistence |
+| `GHCR_OWNER` | `local` | image prefix `ghcr.io/<owner>/commercehub-<service>` |
 
-Logs are plain text in dev/test and structured JSON in the `prod` profile (containers).
+`.env` is ignored by Git. Oracle reads the passwords only on its first start; to change them, run
+`docker compose down -v`. Logs are plain text in dev/test and JSON in containers.
+
+## Repository layout
+
+```
+.
+├── pom.xml                       # parent POM (Quarkus BOM, plugin versions, Java 21 enforcement)
+├── services/                     # user-, product-, order-, inventory-service
+├── docker/service.Dockerfile     # single multi-stage Dockerfile for every service
+├── docker-compose.yml            # Oracle (default) + application containers (profile "apps")
+├── infra/oracle/init/            # creates one schema per service on the first Oracle start
+├── data/seed/                    # demo data, loaded through the APIs
+├── scripts/                      # dev.sh (Quarkus dev mode), seed.sh (demo data)
+├── postman/                      # Postman collection and environment
+├── .github/workflows/ci.yml      # ./mvnw verify on every push and pull request
+└── docs/
+    ├── adr/                      # architecture decision records
+    ├── events/                   # Kafka envelope, topics and message catalog
+    └── sprints/                  # sprint notes and Definition of Done evidence
+```
+
+## Architecture decisions
+
+| ADR | Decision |
+| --- | --- |
+| [0001](docs/adr/0001-microservices-with-quarkus.md) | Microservices with Java 21 and Quarkus in a Maven monorepo |
+| [0002](docs/adr/0002-database-per-service.md) | Database per service with one Oracle schema per service |
+| [0003](docs/adr/0003-local-environment-docker-compose.md) | Local environment with Docker Compose |
+| [0004](docs/adr/0004-container-image-baseline.md) | Container image baseline (UBI OpenJDK runtime) |
+| [0005](docs/adr/0005-event-envelope-and-topics.md) | Event envelope, events vs commands, topics |
+| [0006](docs/adr/0006-order-saga-outbox-and-consumer-reliability.md) | Order saga, transactional outbox, retries and DLQ |
+| [0007](docs/adr/0007-migrations-and-test-strategy.md) | Flyway migrations and test strategy on real Oracle |
+| [0008](docs/adr/0008-http-api-conventions.md) | HTTP API conventions |
+| [0009](docs/adr/0009-local-openshift.md) | Local OpenShift with MicroShift (OKD) |
 
 ## Conventions
 
-- Branches: protected `main`, work on `feature/*`, merge through pull requests.
+- Branches: protected `main`, work on `feature/*`, merge through pull requests with green CI.
 - Commits: [Conventional Commits](https://www.conventionalcommits.org/).
 - Image tags are always pinned; `latest` is never used.

@@ -1,0 +1,8 @@
+{"sku":"KB-MECH-001","name":"Mechanical Keyboard","description":"Hot-swappable mechanical keyboard with brown switches.","categoryCode":"PERIPHERALS","price":349.9,"currencyCode":"BRL"}
+{"sku":"MS-WL-002","name":"Wireless Mouse","description":"Ergonomic wireless mouse, 2.4 GHz and Bluetooth.","categoryCode":"PERIPHERALS","price":129.9,"currencyCode":"BRL"}
+{"sku":"MN-27-4K-003","name":"27-inch 4K Monitor","description":"IPS panel, 60 Hz, USB-C with 65 W power delivery.","categoryCode":"DISPLAYS","price":2199.0,"currencyCode":"BRL"}
+{"sku":"HS-ANC-004","name":"Noise Cancelling Headset","description":"Over-ear headset with active noise cancellation.","categoryCode":"AUDIO","price":899.9,"currencyCode":"BRL"}
+{"sku":"CB-USBC-005","name":"USB-C Cable 2 m","description":"USB 3.2 Gen 2 cable, 100 W.","categoryCode":"ACCESSORIES","price":59.9,"currencyCode":"BRL"}
+{"sku":"DK-USBC-006","name":"USB-C Docking Station","description":"Dual display, Ethernet and 100 W passthrough.","categoryCode":"ACCESSORIES","price":1149.0,"currencyCode":"BRL"}
+{"sku":"WC-1080-007","name":"Full HD Webcam","description":"1080p webcam with dual microphones.","categoryCode":"PERIPHERALS","price":279.9,"currencyCode":"BRL"}
+{"sku":"GIFT-CARD-008","name":"Welcome Gift Card","description":"Promotional item with zero price.","categoryCode":"GIFTS","price":0,"currencyCode":"BRL"}

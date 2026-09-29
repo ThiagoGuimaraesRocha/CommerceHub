@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:commercehub:schema:envelope:1",
+  "title": "CommerceHub message envelope",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "messageKind",
+    "schemaVersion",
+    "occurredAt",
+    "source",
+    "aggregateType",
+    "aggregateId",
+    "correlationId",
+    "payload"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "OrderConfirmed",
+        "OrderCancelled",
+        "OrderCompleted",
+        "InventoryReserved",
+        "InventoryReservationFailed",
+        "InventoryReleased",
+        "ReleaseInventory",
+        "PaymentRequested",
+        "PaymentApproved",
+        "PaymentFailed"
+      ]
+    },
+    "messageKind": { "type": "string", "enum": ["EVENT", "COMMAND"] },
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "enum": ["order-service", "inventory-service", "payment-service"] },
+    "aggregateType": { "type": "string", "enum": ["Order", "Inventory", "Payment"] },
+    "aggregateId": { "type": "string", "format": "uuid" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "causationId": { "type": ["string", "null"], "format": "uuid" },
+    "payload": { "type": "object" }
+  },
+  "additionalProperties": false
+}
