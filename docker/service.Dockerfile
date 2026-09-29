@@ -13,7 +13,7 @@ COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 COPY services/ services/
 
-RUN --mount=type=cache,target=/root/.m2 \
+RUN --mount=type=cache,id=commercehub-m2,target=/root/.m2,sharing=locked \
     test -n "${SERVICE}" && test -d "services/${SERVICE}" \
     && ./mvnw -B -ntp -pl "services/${SERVICE}" -am -DskipTests package
 

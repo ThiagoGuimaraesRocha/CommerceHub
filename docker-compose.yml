@@ -21,7 +21,7 @@ x-db-url: &db-url jdbc:oracle:thin:@//oracle:1521/FREEPDB1
 
 services:
   oracle:
-    image: gvenzl/oracle-free:23.26.3-slim-faststart
+    image: gvenzl/oracle-free:23.26.3-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093
     environment:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:?set ORACLE_PASSWORD in .env}
       USER_DB_PASSWORD: ${USER_DB_PASSWORD:?set USER_DB_PASSWORD in .env}
