@@ -1,0 +1,100 @@
+name: commercehub
+
+# Infrastructure starts by default. Application containers are opt-in:
+#   docker compose up -d                       -> Oracle only (for quarkus:dev)
+#   docker compose --profile apps up -d --build -> Oracle + the four services
+
+x-service: &service
+  profiles: ["apps"]
+  restart: unless-stopped
+  depends_on:
+    oracle:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://localhost:8080/q/health/ready || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+    start_period: 20s
+
+x-db-url: &db-url jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+
+services:
+  oracle:
+    image: gvenzl/oracle-free:23.26.3-slim-faststart
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:?set ORACLE_PASSWORD in .env}
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD:?set USER_DB_PASSWORD in .env}
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:?set PRODUCT_DB_PASSWORD in .env}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD:?set ORDER_DB_PASSWORD in .env}
+      INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD:?set INVENTORY_DB_PASSWORD in .env}
+    ports:
+      - "${ORACLE_HOST_PORT:-1521}:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./infra/oracle/init:/container-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  user-service:
+    <<: *service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: user-service
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.1.0
+    environment:
+      DB_URL: *db-url
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD}
+    ports:
+      - "8081:8080"
+
+  product-service:
+    <<: *service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: product-service
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.1.0
+    environment:
+      DB_URL: *db-url
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
+    ports:
+      - "8082:8080"
+
+  order-service:
+    <<: *service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: order-service
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.1.0
+    environment:
+      DB_URL: *db-url
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
+    ports:
+      - "8083:8080"
+
+  inventory-service:
+    <<: *service
+    build:
+      context: .
+      dockerfile: docker/service.Dockerfile
+      args:
+        SERVICE: inventory-service
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.1.0
+    environment:
+      DB_URL: *db-url
+      INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
+    ports:
+      - "8084:8080"
+
+volumes:
+  oracle-data:
