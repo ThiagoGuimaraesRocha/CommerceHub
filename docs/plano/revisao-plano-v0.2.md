@@ -36,7 +36,7 @@ precisam ser resolvidos antes da sprint indicada para não gerar retrabalho.
 | Item | No plano | Situação em 29/09/2026 |
 | --- | --- | --- |
 | Oracle Free | `23.26.2-full` | `23.26.3` disponível; adotado `23.26.3-slim-faststart` com digest. |
-| Jaeger | `jaegertracing/all-in-one:1.76.0` | A linha 1.x do Jaeger foi descontinuada em favor do Jaeger v2 (`jaegertracing/jaeger:2.x`). Revalidar na S6. |
+| Jaeger | `jaegertracing/all-in-one:1.76.0` | Jaeger v1 chegou ao fim de vida em 31/12/2025 e não recebe mais correções. Usar Jaeger v2 (`cr.jaegertracing.io/jaegertracing/jaeger:2.x`, OTLP nativo, configuração YAML). Fixar a tag na S6. |
 | Quarkus | não fixado | 3.33.x (LTS) adotado. |
 | Java | 21 | Mantido. Java 25 (LTS) é opção futura. |
 
