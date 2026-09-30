@@ -134,15 +134,17 @@ At least one item was unavailable; **nothing** is reserved (all-or-nothing). Ord
 
 ### `ReleaseInventory` — COMMAND, `commerce.inventory.commands`
 
-Compensation: asks Inventory Service to release the reservations of an order. Sent by Order Service when a
-later step fails after stock was reserved (future: `PaymentFailed`).
+Compensation: asks Inventory Service to release the reservations of an order. Sent by Order Service when an
+order in `INVENTORY_RESERVED` is cancelled by the customer, or (future) when payment fails.
 
 ```json
 {
   "orderId": "3f1c2a9e-6b0d-4c47-9a53-0f3f5a1d2b7c",
-  "reason": "PAYMENT_FAILED"
+  "reason": "CUSTOMER_CANCELLED"
 }
 ```
+
+`reason` values: `CUSTOMER_CANCELLED`, `PAYMENT_FAILED`.
 
 ### `InventoryReleased` — EVENT, `commerce.inventory.events`
 
@@ -162,12 +164,19 @@ Reservations were released (idempotent: releasing an already released order publ
 ```json
 {
   "orderId": "3f1c2a9e-6b0d-4c47-9a53-0f3f5a1d2b7c",
-  "previousStatus": "CONFIRMED",
-  "reason": "INSUFFICIENT_STOCK"
+  "previousStatus": "INVENTORY_RESERVED",
+  "reason": "CHANGED_MIND",
+  "cancelledBy": "CUSTOMER"
 }
 ```
 
-`reason` values: `INSUFFICIENT_STOCK`, `PAYMENT_FAILED`, `CUSTOMER_REQUEST`.
+| Field | Values |
+| --- | --- |
+| `cancelledBy` | `CUSTOMER`, `SYSTEM` |
+| `reason` (customer) | `CHANGED_MIND`, `ORDERED_BY_MISTAKE`, `FOUND_BETTER_PRICE`, `DELIVERY_TIME_TOO_LONG`, `OTHER` |
+| `reason` (system) | `INSUFFICIENT_STOCK`, `UNKNOWN_PRODUCT`, `PAYMENT_FAILED` |
+
+The customer's free-text note is kept only in `ORDER_SCHEMA` and is never published.
 
 ### `OrderCompleted` — EVENT, `commerce.order.events` *(future)*
 
@@ -212,3 +221,13 @@ Client            Order Service                      Kafka                      
 Failure path: Inventory publishes `InventoryReservationFailed`; Order Service moves the order to `CANCELLED`
 (reason `INSUFFICIENT_STOCK`) and publishes `OrderCancelled`. No compensation is needed because nothing was
 reserved.
+
+Customer cancellation after reservation: `POST /api/v1/orders/{id}/cancel` moves `INVENTORY_RESERVED ->
+CANCELLED` and writes `OrderCancelled` + `ReleaseInventory` to the outbox in the same transaction. Inventory
+Service releases the stock and answers `InventoryReleased`.
+
+## Storage
+
+Producers write messages to `OUTBOX_EVENTS`; consumers record them in `PROCESSED_EVENTS`. Both tables exist in
+`ORDER_SCHEMA` and `INVENTORY_SCHEMA`
+([ADR 0006](../adr/0006-order-saga-outbox-and-consumer-reliability.md)).
