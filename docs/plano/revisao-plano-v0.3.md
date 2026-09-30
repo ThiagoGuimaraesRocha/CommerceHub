@@ -34,7 +34,12 @@ documento para a versão 0.4.
 
 ## Ajustes pendentes no documento v0.3
 
-| # | Seção | Problema | Ajuste sugerido para v0.4 |
+Todos os itens A–M foram aplicados em
+[`CommerceHub_Plano_Base_v0.4.md`](CommerceHub_Plano_Base_v0.4.md). Na v0.4, o motivo de cancelamento (H)
+também pode ser escolhido pelo cliente, e `OUTBOX_EVENTS`/`PROCESSED_EVENTS` (I) já foram criadas via
+Flyway nos schemas de Order e Inventory.
+
+| # | Seção | Problema | Ajuste aplicado na v0.4 |
 | --- | --- | --- | --- |
 | A | 1 | A linha "0.3+ A preencher" continua antes da linha 0.3. | Trocar por "0.4+". |
 | B | 23 | Ainda pede "atualizar para a versão 0.2" e mostra a Sprint 1 como não iniciada; o rodapé diz "pronto para iniciar a Sprint 1". | Marcar S1 e S2 concluídas e apontar a S3 como próxima. |

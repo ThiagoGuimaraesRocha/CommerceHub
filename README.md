@@ -38,7 +38,8 @@ OpenShift, observability and CI/CD/GitOps.
 | S7 | OpenShift deployment (local MicroShift/OKD) | Planned |
 | S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
 
-Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr).
+Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr). Project plan (Portuguese):
+[`docs/plano/CommerceHub_Plano_Base_v0.4.md`](docs/plano/CommerceHub_Plano_Base_v0.4.md).
 
 ## Architecture
 
@@ -73,7 +74,15 @@ Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr).
 CREATED --confirm--> CONFIRMED --InventoryReserved--> INVENTORY_RESERVED --> (payment, future) --> COMPLETED
                          |
                          +--InventoryReservationFailed--> CANCELLED (INSUFFICIENT_STOCK)
+
+CREATED | INVENTORY_RESERVED --customer cancel (reason chosen by the customer)--> CANCELLED
 ```
+
+Cancellation is stored on the order (`cancellation_reason`, `cancellation_note`, `cancelled_by`,
+`cancelled_at`). Customers pick a reason from `GET /api/v1/orders/cancellation-reasons` (for example
+`CHANGED_MIND`, or `OTHER` with a free-text note); the system uses `INSUFFICIENT_STOCK`, `UNKNOWN_PRODUCT`
+or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already exist in `ORDER_SCHEMA` and
+`INVENTORY_SCHEMA` (see [ADR 0006](docs/adr/0006-order-saga-outbox-and-consumer-reliability.md)).
 
 | Service | Responsibility | Schema | Dev port | Container port |
 | --- | --- | --- | --- | --- |
@@ -233,7 +242,7 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | [0003](docs/adr/0003-local-environment-docker-compose.md) | Local environment with Docker Compose |
 | [0004](docs/adr/0004-container-image-baseline.md) | Container image baseline (UBI OpenJDK runtime) |
 | [0005](docs/adr/0005-event-envelope-and-topics.md) | Event envelope, events vs commands, topics |
-| [0006](docs/adr/0006-order-saga-outbox-and-consumer-reliability.md) | Order saga, transactional outbox, retries and DLQ |
+| [0006](docs/adr/0006-order-saga-outbox-and-consumer-reliability.md) | Order saga, cancellation reasons, transactional outbox, retries and DLQ |
 | [0007](docs/adr/0007-migrations-and-test-strategy.md) | Flyway migrations and test strategy on real Oracle |
 | [0008](docs/adr/0008-http-api-conventions.md) | HTTP API conventions |
 | [0009](docs/adr/0009-local-openshift.md) | Local OpenShift with MicroShift (OKD) |

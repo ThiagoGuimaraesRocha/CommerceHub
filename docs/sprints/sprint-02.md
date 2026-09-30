@@ -16,6 +16,11 @@ Goal: product catalog with Oracle persistence and a tested REST API.
 - GitHub Actions CI running `./mvnw verify` with README badge.
 - ADRs 0005–0009: event envelope, saga/outbox, migrations/tests, API conventions, local OpenShift.
 - Event and command contracts in `docs/events`.
+- Messaging groundwork for Sprint 4: `OUTBOX_EVENTS` and `PROCESSED_EVENTS` created by Flyway
+  (`V1__create_messaging_tables.sql`) in `ORDER_SCHEMA` and `INVENTORY_SCHEMA`, covered by `MessagingTablesIT`
+  (5 tests per service on Oracle Dev Services).
+- Plan v0.4 (`docs/plano/CommerceHub_Plano_Base_v0.4.md`): customer-selectable cancellation reasons,
+  Kafka classes moved from Sprint 3 to Sprint 4.
 
 ## Definition of Done
 
