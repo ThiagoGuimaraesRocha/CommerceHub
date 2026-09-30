@@ -19,7 +19,7 @@ class HealthEndpointTest {
     }
 
     @Test
-    void readinessIsUpWhenNoDatasourceIsActive() {
+    void readinessIsUp() {
         given()
                 .when().get("/q/health/ready")
                 .then()
