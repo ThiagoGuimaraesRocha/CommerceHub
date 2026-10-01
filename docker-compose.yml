@@ -76,12 +76,19 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: order-service
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.1.0
+        VERSION: 0.3.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.3.0
     environment:
       DB_URL: *db-url
       ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
+      PRODUCT_SERVICE_URL: http://product-service:8080
     ports:
       - "8083:8080"
+    depends_on:
+      oracle:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
 
   inventory-service:
     <<: *service
