@@ -2,13 +2,42 @@
   "info": {
     "name": "CommerceHub",
     "_postman_id": "0b7f6a52-3f5e-4d8e-9a57-6c1c3c2f1a01",
-    "description": "Requests for the CommerceHub microservices. Import together with `CommerceHub.local.postman_environment.json`.\n\nRun the whole collection (Collection Runner or `newman`) in order: requests share `productId`, `productSku` and `productVersion` through collection variables.\n\nErrors follow RFC 9457 (`application/problem+json`). Monetary values use scale 4.",
+    "description": "Requests for the CommerceHub microservices. Import together with `CommerceHub.local.postman_environment.json`.\n\nRun the whole collection (Collection Runner or `newman`) in order: requests share product and order variables through collection variables.\n\nErrors follow RFC 9457 (`application/problem+json`). Monetary values use scale 4.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "productId", "value": "" },
-    { "key": "productSku", "value": "" },
-    { "key": "productVersion", "value": "0" }
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "productSku",
+      "value": ""
+    },
+    {
+      "key": "productVersion",
+      "value": "0"
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "orderProductId",
+      "value": ""
+    },
+    {
+      "key": "orderProductSku",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "key": "cancelOrderId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -16,165 +45,678 @@
       "item": [
         {
           "name": "User Service readiness",
-          "request": { "method": "GET", "url": "{{userServiceUrl}}/q/health/ready" },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{userServiceUrl}}/q/health/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Product Service readiness",
-          "request": { "method": "GET", "url": "{{productServiceUrl}}/q/health/ready" },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{productServiceUrl}}/q/health/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Order Service readiness",
-          "request": { "method": "GET", "url": "{{orderServiceUrl}}/q/health/ready" },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{orderServiceUrl}}/q/health/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Inventory Service readiness",
-          "request": { "method": "GET", "url": "{{inventoryServiceUrl}}/q/health/ready" },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{inventoryServiceUrl}}/q/health/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 and UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
       "name": "Product Service",
-      "description": "Product catalog. OpenAPI: {{productServiceUrl}}/q/openapi — Swagger UI: {{productServiceUrl}}/q/swagger-ui",
+      "description": "Product catalog. OpenAPI: {{productServiceUrl}}/q/openapi \u2014 Swagger UI: {{productServiceUrl}}/q/swagger-ui",
       "item": [
         {
           "name": "Create product",
           "event": [
-            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
-              "const suffix = Date.now().toString(36).toUpperCase();",
-              "pm.collectionVariables.set('productSku', 'KB-MECH-' + suffix);"
-            ] } },
-            { "listen": "test", "script": { "type": "text/javascript", "exec": [
-              "pm.test('201 Created with Location', () => { pm.response.to.have.status(201); pm.response.to.have.header('Location'); });",
-              "const body = pm.response.json();",
-              "pm.test('price has scale 4', () => pm.expect(pm.response.text()).to.include('\"price\":349.9000'));",
-              "pm.test('defaults', () => { pm.expect(body.currencyCode).to.eql('BRL'); pm.expect(body.active).to.eql(true); pm.expect(body.version).to.eql(0); });",
-              "pm.collectionVariables.set('productId', body.id);",
-              "pm.collectionVariables.set('productVersion', body.version);"
-            ] } }
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now().toString(36).toUpperCase();",
+                  "pm.collectionVariables.set('productSku', 'KB-MECH-' + suffix);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created with Location', () => { pm.response.to.have.status(201); pm.response.to.have.header('Location'); });",
+                  "const body = pm.response.json();",
+                  "pm.test('price has scale 4', () => pm.expect(pm.response.text()).to.include('\"price\":349.9000'));",
+                  "pm.test('defaults', () => { pm.expect(body.currencyCode).to.eql('BRL'); pm.expect(body.active).to.eql(true); pm.expect(body.version).to.eql(0); });",
+                  "pm.collectionVariables.set('productId', body.id);",
+                  "pm.collectionVariables.set('productVersion', body.version);"
+                ]
+              }
+            }
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{productServiceUrl}}/api/v1/products",
-            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"Hot-swappable mechanical keyboard with brown switches.\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 349.9,\n  \"currencyCode\": \"BRL\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"Hot-swappable mechanical keyboard with brown switches.\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 349.9,\n  \"currencyCode\": \"BRL\"\n}"
+            }
           }
         },
         {
           "name": "Get product by id",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "pm.test('same product', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('productId')));"
-          ] } }],
-          "request": { "method": "GET", "url": "{{productServiceUrl}}/api/v1/products/{{productId}}" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('same product', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('productId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}"
+          }
         },
         {
           "name": "List products (filter + pagination)",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "const body = pm.response.json();",
-            "pm.test('page shape', () => { pm.expect(body).to.have.keys('items', 'page', 'size', 'totalItems', 'totalPages'); });",
-            "pm.test('only PERIPHERALS', () => body.items.forEach(p => pm.expect(p.categoryCode).to.eql('PERIPHERALS')));"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('page shape', () => { pm.expect(body).to.have.keys('items', 'page', 'size', 'totalItems', 'totalPages'); });",
+                  "pm.test('only PERIPHERALS', () => body.items.forEach(p => pm.expect(p.categoryCode).to.eql('PERIPHERALS')));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
               "raw": "{{productServiceUrl}}/api/v1/products?category=PERIPHERALS&active=true&page=0&size=20",
-              "host": ["{{productServiceUrl}}"],
-              "path": ["api", "v1", "products"],
+              "host": [
+                "{{productServiceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products"
+              ],
               "query": [
-                { "key": "category", "value": "PERIPHERALS" },
-                { "key": "active", "value": "true" },
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "category",
+                  "value": "PERIPHERALS"
+                },
+                {
+                  "key": "active",
+                  "value": "true"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             }
           }
         },
         {
           "name": "Update product (optimistic locking)",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "const body = pm.response.json();",
-            "pm.test('version incremented', () => pm.expect(body.version).to.eql(Number(pm.collectionVariables.get('productVersion')) + 1));",
-            "pm.test('new price', () => pm.expect(pm.response.text()).to.include('\"price\":329.9000'));"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('version incremented', () => pm.expect(body.version).to.eql(Number(pm.collectionVariables.get('productVersion')) + 1));",
+                  "pm.test('new price', () => pm.expect(pm.response.text()).to.include('\"price\":329.9000'));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
-            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"Hot-swappable mechanical keyboard with brown switches.\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 329.9,\n  \"currencyCode\": \"BRL\",\n  \"active\": true,\n  \"version\": {{productVersion}}\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"Hot-swappable mechanical keyboard with brown switches.\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 329.9,\n  \"currencyCode\": \"BRL\",\n  \"active\": true,\n  \"version\": {{productVersion}}\n}"
+            }
           }
         },
         {
           "name": "Update with stale version (409)",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('409 stale-version', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:stale-version'); });"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 stale-version', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:stale-version'); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
-            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 1,\n  \"currencyCode\": \"BRL\",\n  \"active\": true,\n  \"version\": {{productVersion}}\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Mechanical Keyboard\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 1,\n  \"currencyCode\": \"BRL\",\n  \"active\": true,\n  \"version\": {{productVersion}}\n}"
+            }
           }
         },
         {
           "name": "Create with duplicate SKU (409)",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('409 duplicate-sku', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:duplicate-sku'); });",
-            "pm.test('problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 duplicate-sku', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:duplicate-sku'); });",
+                  "pm.test('problem+json', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{productServiceUrl}}/api/v1/products",
-            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Duplicate\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 10\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Duplicate\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 10\n}"
+            }
           }
         },
         {
           "name": "Create with invalid fields (400)",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('400 validation-error', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:validation-error'); });",
-            "pm.test('lists violated fields', () => { const fields = pm.response.json().violations.map(v => v.field); pm.expect(fields).to.include.members(['sku', 'price']); });"
-          ] } }],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 validation-error', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:validation-error'); });",
+                  "pm.test('lists violated fields', () => { const fields = pm.response.json().violations.map(v => v.field); pm.expect(fields).to.include.members(['sku', 'price']); });"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{productServiceUrl}}/api/v1/products",
-            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"invalid sku\",\n  \"name\": \"Invalid\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": -1\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"invalid sku\",\n  \"name\": \"Invalid\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": -1\n}"
+            }
           }
         },
         {
           "name": "Get unknown product (404)",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('404 product-not-found', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:product-not-found'); });"
-          ] } }],
-          "request": { "method": "GET", "url": "{{productServiceUrl}}/api/v1/products/00000000-0000-0000-0000-000000000000" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 product-not-found', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:product-not-found'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{productServiceUrl}}/api/v1/products/00000000-0000-0000-0000-000000000000"
+          }
         },
         {
           "name": "Deactivate product (soft delete)",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('204 No Content', () => pm.response.to.have.status(204));"
-          ] } }],
-          "request": { "method": "DELETE", "url": "{{productServiceUrl}}/api/v1/products/{{productId}}" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}"
+          }
         },
         {
           "name": "Get deactivated product",
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-            "pm.test('still readable, inactive', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().active).to.eql(false); });"
-          ] } }],
-          "request": { "method": "GET", "url": "{{productServiceUrl}}/api/v1/products/{{productId}}" }
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('still readable, inactive', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().active).to.eql(false); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Order Service",
+      "description": "Orders. OpenAPI: {{orderServiceUrl}}/q/openapi \u2014 Swagger UI: {{orderServiceUrl}}/q/swagger-ui.\\n\\nCreates its own product so the collection still works after Product Service soft-deletes its demo product.",
+      "item": [
+        {
+          "name": "Create product for order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now().toString(36).toUpperCase();",
+                  "pm.collectionVariables.set('orderProductSku', 'ORD-PROD-' + suffix);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('orderProductId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{productServiceUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{orderProductSku}}\",\n  \"name\": \"Order Demo Product\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 49.9\n}"
+            }
+          }
+        },
+        {
+          "name": "Create order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created with Location', () => { pm.response.to.have.status(201); pm.response.to.have.header('Location'); });",
+                  "const body = pm.response.json();",
+                  "pm.test('snapshot and total', () => {",
+                  "  pm.expect(body.status).to.eql('CREATED');",
+                  "  pm.expect(pm.response.text()).to.include('\"totalAmount\":99.8000');",
+                  "  pm.expect(body.items[0].sku).to.eql(pm.collectionVariables.get('orderProductSku'));",
+                  "});",
+                  "pm.collectionVariables.set('orderId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{orderServiceUrl}}/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    { \"productId\": \"{{orderProductId}}\", \"quantity\": 2 }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Get order by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('same order', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('orderId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}"
+          }
+        },
+        {
+          "name": "List orders by customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('contains created order', () => {",
+                  "  const ids = pm.response.json().map(o => o.id);",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('orderId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{orderServiceUrl}}/api/v1/orders?customerId={{customerId}}",
+              "host": [
+                "{{orderServiceUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Confirm order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 CONFIRMED', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('CONFIRMED'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}/confirm"
+          }
+        },
+        {
+          "name": "Confirm again (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 invalid-order-state', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:invalid-order-state'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}/confirm"
+          }
+        },
+        {
+          "name": "Cancel confirmed order (409 awaiting inventory)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 order-awaiting-inventory', () => { pm.response.to.have.status(409); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:order-awaiting-inventory'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reasonCode\": \"CHANGED_MIND\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create order to cancel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('cancelOrderId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{orderServiceUrl}}/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    { \"productId\": \"{{orderProductId}}\", \"quantity\": 1 }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Cancel order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 CANCELLED', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('CANCELLED');",
+                  "  pm.expect(body.cancellationReason).to.eql('CHANGED_MIND');",
+                  "  pm.expect(body.cancelledBy).to.eql('CUSTOMER');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{orderServiceUrl}}/api/v1/orders/{{cancelOrderId}}/cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reasonCode\": \"CHANGED_MIND\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List cancellation reasons",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('includes OTHER with noteRequired', () => {",
+                  "  const other = pm.response.json().find(r => r.code === 'OTHER');",
+                  "  pm.expect(other.noteRequired).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{orderServiceUrl}}/api/v1/orders/cancellation-reasons"
+          }
+        },
+        {
+          "name": "Unknown product (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 unknown-product', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:unknown-product'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{orderServiceUrl}}/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    { \"productId\": \"00000000-0000-0000-0000-000000000000\", \"quantity\": 1 }\n  ]\n}"
+            }
+          }
         }
       ]
     }
