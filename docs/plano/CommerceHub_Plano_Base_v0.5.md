@@ -1,8 +1,8 @@
 ---
 title: "CommerceHub — Documento-base de arquitetura e execução"
 subtitle: "Event-Driven E-Commerce Microservices Platform"
-version: "0.4"
-date: "30/09/2026"
+version: "0.5"
+date: "01/10/2026"
 lang: pt-BR
 ---
 
@@ -13,7 +13,7 @@ aquisição de clientes na Upwork.
 
 | Campo | Valor |
 | --- | --- |
-| Versão do documento | 0.4 — Sprints 1–3 concluídas; cancelamento, outbox e deduplicação formalizados |
+| Versão do documento | 0.5 — Sprints 1–3 concluídas; Order Service entregue com integração REST ao Product Service |
 | Data | 01/10/2026 |
 | Status | Baseline atualizado; pronto para iniciar a Sprint 4 |
 | Objetivo | Projeto público de portfólio que demonstre Java, Quarkus, microsserviços, Kafka, Oracle, testes, observabilidade, containers, OpenShift e CI/CD/GitOps |
@@ -27,7 +27,7 @@ aquisição de clientes na Upwork.
 # 1. Controle do documento
 
 Este arquivo é o ponto de partida oficial do projeto. A fonte versionada fica em
-`docs/plano/CommerceHub_Plano_Base_v0.4.md`; o DOCX é gerado a partir dela. Cada atualização relevante
+`docs/plano/CommerceHub_Plano_Base_v0.5.md`; o DOCX é gerado a partir dela. Cada atualização relevante
 incrementa a versão e registra o que mudou.
 
 | Versão | Data | Status | Descrição da alteração |
@@ -36,7 +36,8 @@ incrementa a versão e registra o que mudou.
 | 0.2 | 29/09/2026 | Baseline atualizado | Correção editorial: remoção dos marcadores internos de citação e inclusão de referências legíveis e links oficiais. |
 | 0.3 | 29/09/2026 | Arquitetura atualizada | Saga de pedido: InventoryReserved/InventoryReservationFailed, estados do Order, eventos x comandos, processamento idempotente e ação compensatória ReleaseInventory. |
 | 0.4 | 30/09/2026 | Baseline atualizado | Sprints 1 e 2 concluídas com versões reais; decisões da revisão técnica aplicadas; envelope de mensagens; cancelamento com motivo escolhido pelo cliente; tabelas OUTBOX_EVENTS e PROCESSED_EVENTS criadas; classes Kafka movidas da S3 para a S4; endpoint administrativo de estoque; OpenShift local (MicroShift/OKD); Jaeger v2; Postman, OpenAPI e CI. |
-| 0.5+ | A preencher | Planejada | Atualizações ao fim das Sprints 3 em diante. |
+| 0.5 | 01/10/2026 | Baseline atualizado | Sprint 3 concluída: API de pedidos (criação, consulta, confirmação e cancelamento), snapshot de produto via REST Client + Fault Tolerance, `V2__create_orders.sql`, Problem Details 400/404/409/503, testes unitários/API/integração (Oracle + WireMock), Postman e imagem `order-service:0.3.0`; classes da S3 atualizadas conforme implementação. |
+| 0.6+ | A preencher | Planejada | Atualizações ao fim das Sprints 4 em diante. |
 
 Regra de versionamento: incrementar o segundo dígito para alterações de conteúdo sem quebra de escopo e
 registrar alterações estruturais que mudem arquitetura ou tecnologia antes da implementação correspondente
@@ -331,7 +332,7 @@ mensagem e JSON Schema, em `docs/events`.
 | --- | --- | --- | --- |
 | S1 | Base do projeto | Monorepo, Maven/Quarkus, Oracle, Docker Compose, padrões, ADRs | Concluída (29/09/2026) |
 | S2 | Product Service | CRUD, Flyway, Problem Details, OpenAPI, testes, Postman, CI; tabelas de mensageria | Concluída (30/09/2026) |
-| S3 | Order Service | Pedidos, itens, integração REST com Product Service, confirmação e cancelamento | Concluída |
+| S3 | Order Service | Pedidos, itens, integração REST com Product Service, confirmação e cancelamento | Concluída (01/10/2026) |
 | S4 | Kafka + Inventory | Saga, outbox, consumidores idempotentes, DLQ, endpoint administrativo de estoque | Planejada |
 | S5 | User + JWT | Usuários, autenticação demonstrativa e autorização | Planejada |
 | S6 | Observabilidade | OpenTelemetry, Jaeger v2, Prometheus, Grafana e métricas | Planejada |
@@ -522,14 +523,14 @@ estava previsto); `uk_order_items_product` impede o mesmo produto duas vezes no 
 
 | Camada | Classes |
 | --- | --- |
-| Domain | `OrderEntity`, `OrderItemEntity`, `OrderStatus`, `CancellationReason`, `CancelledBy` |
+| Domain | `OrderEntity`, `OrderItemEntity`, `OrderStatus`, `CancellationReason`, `CancelledBy`, `Money` |
 | API | `OrderResource`, `CreateOrderRequest`, `OrderItemRequest`, `CancelOrderRequest`, `OrderResponse`, `OrderItemResponse`, `CancellationReasonResponse` |
 | Application | `OrderApplicationService`, `OrderCalculator`, `OrderStateTransitionService`, `OrderCancellationService` |
 | Persistence | `OrderRepository`, `OrderItemRepository` |
 | Integration | `ProductClient`, `ProductSnapshotResponse`, `ProductClientExceptionMapper` |
-| Mapping | `OrderMapper` |
-| Errors | `OrderNotFoundException`, `InvalidOrderStateException`, `UnknownProductException`, `RemoteProductServiceException` |
-| Tests | `OrderApplicationServiceTest`, `OrderCalculatorTest`, `OrderStateTransitionTest`, `OrderCancellationTest`, `OrderResourceTest`, `ProductClientIT`, `OrderRepositoryIT` |
+| Mapping/Config | `OrderMapper`, `JacksonConfig` |
+| Errors | `ProblemDetail`, `ApiExceptionHandler`, `ConstraintViolationHandler`, `OrderNotFoundException`, `InvalidOrderStateException`, `UnknownProductException`, `RemoteProductServiceException`, `DuplicateProductInOrderException`, `CurrencyMismatchException` |
+| Tests | `OrderApplicationServiceTest`, `OrderCalculatorTest`, `OrderStateTransitionTest`, `OrderCancellationTest`, `OrderResourceTest`, `HealthEndpointTest`, `ProductClientIT`, `OrderRepositoryIT` |
 
 As classes de mensageria (publicação, consumo, outbox e deduplicação) foram movidas para a S4 (seção 11.4).
 
@@ -984,8 +985,8 @@ Jenkinsfile: pipeline alternativa de build/test                                 
 
 # 23. Próximo passo operacional
 
-Iniciar a **Sprint 3 — Order Service** (seção 10), começando pela migração `V2__create_orders.sql`, pela
-máquina de estados com cancelamento e pelo `ProductClient`.
+Iniciar a **Sprint 4 — Kafka + Inventory Service + idempotência** (seção 11), começando pelo Kafka no
+Docker Compose, pelo `OrderConfirmed` publicado via outbox e pelo endpoint administrativo de estoque.
 
 - [x] Conta GitHub com 2FA e repositório público `CommerceHub`.
 - [x] Projeto Quarkus/Maven com Java 21 e quatro serviços executando.
@@ -993,7 +994,8 @@ máquina de estados com cancelamento e pelo `ProductClient`.
 - [x] Product Service completo (S2).
 - [x] Tabelas OUTBOX_EVENTS e PROCESSED_EVENTS criadas no ORDER_SCHEMA e INVENTORY_SCHEMA.
 - [x] Documento atualizado para v0.4.
-- [ ] Sprint 3 e atualização do documento para v0.5 ao final.
+- [x] Order Service completo (S3) e documento atualizado para v0.5.
+- [ ] Sprint 4 e atualização do documento para v0.6 ao final.
 
 # 24. Fontes oficiais consultadas
 
@@ -1013,4 +1015,4 @@ Consultas em 29–30/09/2026. Revalidar versões e tags antes de cada release.
 - MicroShift upstream (OKD): <https://github.com/microshift-io/microshift>
 - RFC 9457 — Problem Details for HTTP APIs: <https://www.rfc-editor.org/rfc/rfc9457>
 
-**FIM DO BASELINE v0.4** — CommerceHub pronto para iniciar a Sprint 3.
+**FIM DO BASELINE v0.5** — CommerceHub pronto para iniciar a Sprint 4.

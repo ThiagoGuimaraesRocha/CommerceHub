@@ -39,7 +39,7 @@ OpenShift, observability and CI/CD/GitOps.
 | S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
 
 Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr). Project plan (Portuguese):
-[`docs/plano/CommerceHub_Plano_Base_v0.4.md`](docs/plano/CommerceHub_Plano_Base_v0.4.md).
+[`docs/plano/CommerceHub_Plano_Base_v0.5.md`](docs/plano/CommerceHub_Plano_Base_v0.5.md).
 
 ## Architecture
 

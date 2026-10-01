@@ -15,6 +15,8 @@ Goal: create, query, confirm and cancel orders with Product Service REST integra
   integration (Oracle + WireMock ProductClient).
 - Postman collection extended with the order flow.
 - Image tag `0.3.0`; Compose wires `PRODUCT_SERVICE_URL=http://product-service:8080`.
+- Plan v0.5 (`docs/plano/CommerceHub_Plano_Base_v0.5.md`): Sprint 3 closed, class list aligned with the
+  implementation, Sprint 4 set as next step.
 
 ## Definition of Done
 
