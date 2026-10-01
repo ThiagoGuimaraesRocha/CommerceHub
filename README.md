@@ -31,7 +31,7 @@ OpenShift, observability and CI/CD/GitOps.
 | --- | --- | --- |
 | S1 | Foundation: monorepo, Maven/Quarkus, Oracle, Docker Compose, ADRs | Done |
 | S2 | Product Service: CRUD, Flyway, Problem Details, OpenAPI, tests, Postman, CI | Done |
-| S3 | Order Service: orders, items, REST integration with Product Service | In progress |
+| S3 | Order Service: orders, items, REST integration with Product Service | Done |
 | S4 | Kafka + Inventory Service: saga, outbox, idempotency, stock admin endpoint | Planned |
 | S5 | User Service + JWT | Planned |
 | S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Planned |

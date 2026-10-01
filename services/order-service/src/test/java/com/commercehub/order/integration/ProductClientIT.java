@@ -14,29 +14,39 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import io.quarkus.test.junit.QuarkusTest;
+import io.smallrye.faulttolerance.api.CircuitBreakerMaintenance;
 import jakarta.inject.Inject;
 import java.util.Map;
 import java.util.UUID;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 @QuarkusTest
 @QuarkusTestResource(value = ProductClientIT.WireMockProductService.class, restrictToAnnotatedClass = true)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ProductClientIT {
 
     @Inject
     @RestClient
     ProductClient productClient;
 
+    @Inject
+    CircuitBreakerMaintenance circuitBreakers;
+
     static WireMockServer wireMock;
 
     @BeforeEach
     void reset() {
         wireMock.resetAll();
+        circuitBreakers.resetAll();
     }
 
     @Test
+    @Order(1)
     void getByIdReturnsProductSnapshot() {
         String id = UUID.randomUUID().toString();
         wireMock.stubFor(get(urlEqualTo("/api/v1/products/" + id))
@@ -53,6 +63,7 @@ class ProductClientIT {
     }
 
     @Test
+    @Order(2)
     void notFoundBecomesUnknownProduct() {
         String id = UUID.randomUUID().toString();
         wireMock.stubFor(get(urlEqualTo("/api/v1/products/" + id))
@@ -63,6 +74,7 @@ class ProductClientIT {
     }
 
     @Test
+    @Order(3)
     void serverErrorBecomesRemoteException() {
         String id = UUID.randomUUID().toString();
         wireMock.stubFor(get(urlEqualTo("/api/v1/products/" + id))

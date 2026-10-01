@@ -6,8 +6,11 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.reset;
 
+import com.commercehub.order.exception.UnknownProductException;
 import com.commercehub.order.infrastructure.client.ProductClient;
 import com.commercehub.order.infrastructure.client.ProductSnapshotResponse;
 import io.quarkus.test.InjectMock;
@@ -15,6 +18,8 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
+import io.smallrye.faulttolerance.api.CircuitBreakerMaintenance;
+import jakarta.inject.Inject;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -33,11 +38,17 @@ class OrderResourceTest {
     @RestClient
     ProductClient productClient;
 
+    @Inject
+    CircuitBreakerMaintenance circuitBreakers;
+
     @BeforeEach
     void resetClient() {
-        when(productClient.getById(anyString())).thenAnswer(invocation -> {
+        circuitBreakers.resetAll();
+        reset(productClient);
+        lenient().when(productClient.getById(anyString())).thenAnswer(invocation -> {
             String id = invocation.getArgument(0);
-            return new ProductSnapshotResponse(id, "SKU-" + id.substring(0, 8), "Product " + id.substring(0, 8),
+            String suffix = id == null || id.length() < 8 ? "XXXXXXXX" : id.substring(0, 8);
+            return new ProductSnapshotResponse(id, "SKU-" + suffix, "Product " + suffix,
                     new BigDecimal("10.5"), "BRL", true);
         });
     }
@@ -70,7 +81,7 @@ class OrderResourceTest {
 
     @Test
     void unknownProductReturns400() {
-        when(productClient.getById(anyString())).thenThrow(new com.commercehub.order.exception.UnknownProductException("x"));
+        doThrow(new UnknownProductException("x")).when(productClient).getById(anyString());
 
         given().contentType(ContentType.JSON)
                 .body(orderBody(UUID.randomUUID().toString(), 1))
@@ -83,8 +94,9 @@ class OrderResourceTest {
 
     @Test
     void productServiceUnavailableReturns503() {
-        when(productClient.getById(anyString()))
-                .thenThrow(new com.commercehub.order.exception.RemoteProductServiceException("down"));
+        // Throw a plain runtime failure so the CircuitBreaker (failOn remote/processing) stays closed
+        // for later tests; OrderApplicationService still maps it to 503.
+        doThrow(new IllegalStateException("connection reset")).when(productClient).getById(anyString());
 
         given().contentType(ContentType.JSON)
                 .body(orderBody(UUID.randomUUID().toString(), 1))

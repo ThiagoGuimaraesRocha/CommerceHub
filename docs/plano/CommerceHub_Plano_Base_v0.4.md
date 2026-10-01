@@ -13,9 +13,9 @@ aquisição de clientes na Upwork.
 
 | Campo | Valor |
 | --- | --- |
-| Versão do documento | 0.4 — Sprints 1 e 2 concluídas; cancelamento, outbox e deduplicação formalizados |
-| Data | 30/09/2026 |
-| Status | Baseline atualizado; pronto para iniciar a Sprint 3 |
+| Versão do documento | 0.4 — Sprints 1–3 concluídas; cancelamento, outbox e deduplicação formalizados |
+| Data | 01/10/2026 |
+| Status | Baseline atualizado; pronto para iniciar a Sprint 4 |
 | Objetivo | Projeto público de portfólio que demonstre Java, Quarkus, microsserviços, Kafka, Oracle, testes, observabilidade, containers, OpenShift e CI/CD/GitOps |
 | Estratégia de evolução | Incremental por sprints, com Definition of Done, contratos de eventos/comandos, ADRs e registro de mudanças |
 | Repositório | <https://github.com/ThiagoGuimaraesRocha/CommerceHub> |
@@ -331,7 +331,7 @@ mensagem e JSON Schema, em `docs/events`.
 | --- | --- | --- | --- |
 | S1 | Base do projeto | Monorepo, Maven/Quarkus, Oracle, Docker Compose, padrões, ADRs | Concluída (29/09/2026) |
 | S2 | Product Service | CRUD, Flyway, Problem Details, OpenAPI, testes, Postman, CI; tabelas de mensageria | Concluída (30/09/2026) |
-| S3 | Order Service | Pedidos, itens, integração REST com Product Service, confirmação e cancelamento | Próxima |
+| S3 | Order Service | Pedidos, itens, integração REST com Product Service, confirmação e cancelamento | Concluída |
 | S4 | Kafka + Inventory | Saga, outbox, consumidores idempotentes, DLQ, endpoint administrativo de estoque | Planejada |
 | S5 | User + JWT | Usuários, autenticação demonstrativa e autorização | Planejada |
 | S6 | Observabilidade | OpenTelemetry, Jaeger v2, Prometheus, Grafana e métricas | Planejada |
@@ -539,16 +539,16 @@ As classes de mensageria (publicação, consumo, outbox e deduplicação) foram 
 
 ## 10.5 Definition of Done
 
-- [ ] Pedido com N itens pode ser criado e consultado.
-- [ ] Preço, SKU e nome do item gravados como snapshot.
-- [ ] Total calculado no backend e validado por teste.
-- [ ] Product Service acessado apenas via REST.
-- [ ] Produto inexistente/inativo (400) e serviço indisponível (503) tratados.
-- [ ] Confirmação valida `CREATED -> CONFIRMED`; transição inválida retorna 409.
-- [ ] Cliente cancela em `CREATED` escolhendo um motivo; `OTHER` exige observação; motivo de sistema é recusado.
-- [ ] Restrições de cancelamento garantidas também pelo banco.
-- [ ] Testes unitários e de integração verdes; imagem executa em ambiente limpo.
-- [ ] Coleção Postman ampliada com o fluxo de pedidos.
+- [x] Pedido com N itens pode ser criado e consultado.
+- [x] Preço, SKU e nome do item gravados como snapshot.
+- [x] Total calculado no backend e validado por teste.
+- [x] Product Service acessado apenas via REST.
+- [x] Produto inexistente/inativo (400) e serviço indisponível (503) tratados.
+- [x] Confirmação valida `CREATED -> CONFIRMED`; transição inválida retorna 409.
+- [x] Cliente cancela em `CREATED` escolhendo um motivo; `OTHER` exige observação; motivo de sistema é recusado.
+- [x] Restrições de cancelamento garantidas também pelo banco.
+- [x] Testes unitários e de integração verdes; imagem executa em ambiente limpo.
+- [x] Coleção Postman ampliada com o fluxo de pedidos.
 
 # 11. Sprint 4 — Kafka + Inventory Service + idempotência
 

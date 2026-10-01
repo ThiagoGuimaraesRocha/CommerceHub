@@ -85,6 +85,7 @@ public class OrderResource {
 
     @POST
     @Path("/{id}/confirm")
+    @Consumes(MediaType.WILDCARD)
     @Operation(summary = "Confirm an order", description = "Validates CREATED -> CONFIRMED. Event publishing arrives in Sprint 4.")
     @APIResponse(responseCode = "200", description = "Order confirmed",
             content = @Content(schema = @Schema(implementation = OrderResponse.class)))

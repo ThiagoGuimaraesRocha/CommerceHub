@@ -15,6 +15,6 @@ public record CreateOrderRequest(
         String customerId,
 
         @Schema(description = "Order lines. Each product may appear only once.")
-        @NotNull @NotEmpty @Valid
-        List<OrderItemRequest> items) {
+        @NotNull @NotEmpty
+        List<@Valid OrderItemRequest> items) {
 }
