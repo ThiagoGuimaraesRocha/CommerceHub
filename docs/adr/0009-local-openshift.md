@@ -38,7 +38,8 @@ on the developer machine and starts together with the rest of the local stack.
   and Compose only for Oracle, Kafka and observability.
 - Storage: CommerceHub pods use **no PVC** (stateless JVMs). TopoLVM is not required for these workloads.
 - Kafka exposes a dedicated `OPENSHIFT` listener on host port `39092` so advertised brokers match `INFRA_HOST`.
-- Argo CD (Sprint 8) must be installed from upstream manifests; MicroShift has no OperatorHub by default.
+- Argo CD (Sprint 8) is installed from the upstream `manifests/install.yaml` pinned to `v3.5.4`;
+  MicroShift has no OperatorHub by default. See [ADR 0012](0012-cicd-gitops-ghcr.md).
 - Pinned image: `ghcr.io/microshift-io/microshift:4.20.0_g153ff0ca9_4.20.0_okd_scos.16`.
 
 ## Consequences

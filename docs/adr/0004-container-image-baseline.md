@@ -26,4 +26,5 @@ tools and credentials, and able to run on OpenShift, which starts containers wit
   instead for OpenShift compatibility and confirmed by the project owner on 2026-09-29.
 - The JVM and container run in UTC (`TZ=UTC`, `-Duser.timezone=UTC`).
 - Images do not depend on source code mounted as volumes.
-- Digests will be recorded when images are published to GHCR by the CI pipeline.
+- Image tags (`0.8.0`, `sha-<commit>`, git tag) are published to GHCR by the CI pipeline (Sprint 8).
+  Digests are assigned by the registry at push time and are not invented in this repository.

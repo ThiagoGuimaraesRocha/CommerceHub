@@ -29,6 +29,38 @@ load_env_file() {
   fi
 }
 
+apply_commercehub_secrets() {
+  local ns="${1:-commercehub}"
+  : "${USER_DB_PASSWORD:?set USER_DB_PASSWORD in .env}"
+  : "${PRODUCT_DB_PASSWORD:?set PRODUCT_DB_PASSWORD in .env}"
+  : "${ORDER_DB_PASSWORD:?set ORDER_DB_PASSWORD in .env}"
+  : "${INVENTORY_DB_PASSWORD:?set INVENTORY_DB_PASSWORD in .env}"
+  : "${DEMO_ADMIN_EMAIL:?set DEMO_ADMIN_EMAIL in .env}"
+  : "${DEMO_ADMIN_PASSWORD:?set DEMO_ADMIN_PASSWORD in .env}"
+  local full_name="${DEMO_ADMIN_FULL_NAME:-CommerceHub Admin}"
+  kube create secret generic commercehub-secrets \
+    --namespace "${ns}" \
+    --from-literal=USER_DB_PASSWORD="${USER_DB_PASSWORD}" \
+    --from-literal=PRODUCT_DB_PASSWORD="${PRODUCT_DB_PASSWORD}" \
+    --from-literal=ORDER_DB_PASSWORD="${ORDER_DB_PASSWORD}" \
+    --from-literal=INVENTORY_DB_PASSWORD="${INVENTORY_DB_PASSWORD}" \
+    --from-literal=DEMO_ADMIN_EMAIL="${DEMO_ADMIN_EMAIL}" \
+    --from-literal=DEMO_ADMIN_PASSWORD="${DEMO_ADMIN_PASSWORD}" \
+    --from-literal=DEMO_ADMIN_FULL_NAME="${full_name}" \
+    --dry-run=client -o yaml | kube apply -f -
+}
+
+apply_commercehub_runtime() {
+  local ns="${1:-commercehub}"
+  local host="${2:?INFRA_HOST required}"
+  kube create configmap commercehub-runtime \
+    --namespace "${ns}" \
+    --from-literal=DB_URL="jdbc:oracle:thin:@//${host}:1521/FREEPDB1" \
+    --from-literal=KAFKA_BOOTSTRAP_SERVERS="${host}:39092" \
+    --from-literal=OTEL_EXPORTER_OTLP_ENDPOINT="http://${host}:4317" \
+    --dry-run=client -o yaml | kube apply -f -
+}
+
 detect_infra_host() {
   if [[ -n "${INFRA_HOST:-}" ]]; then
     printf '%s\n' "${INFRA_HOST}"

@@ -1,5 +1,6 @@
-# Placeholders (__INFRA_HOST__, ghcr.io/local/, :0.7.0) are substituted by
-# scripts/openshift-apply.sh. Do not apply this directory raw.
+# Host-specific DB/Kafka/OTEL live in ConfigMap commercehub-runtime (created at apply
+# time, not in Git). Image owner/tag ghcr.io/local/:0.8.0 are substituted by
+# scripts/openshift-apply.sh. Argo CD rewrites images in deploy/argocd/application.yaml.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: commercehub

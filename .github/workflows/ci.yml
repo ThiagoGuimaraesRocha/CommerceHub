@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -13,6 +14,9 @@ permissions:
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  IMAGE_VERSION: "0.8.0"
 
 jobs:
   build:
@@ -51,3 +55,74 @@ jobs:
             services/*/target/failsafe-reports/
           if-no-files-found: ignore
           retention-days: 7
+
+  publish:
+    name: Publish images to GHCR
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+      actions: write
+    strategy:
+      fail-fast: true
+      matrix:
+        service:
+          - user-service
+          - product-service
+          - order-service
+          - inventory-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set image names
+        id: meta
+        run: |
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${owner}/commercehub-${{ matrix.service }}"
+          sha_tag="sha-$(echo '${{ github.sha }}' | cut -c1-7)"
+          tags="${image}:${IMAGE_VERSION},${image}:${sha_tag}"
+          if [[ '${{ github.ref }}' == refs/tags/* ]]; then
+            git_tag="${GITHUB_REF_NAME}"
+            tags="${tags},${image}:${git_tag}"
+          fi
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${tags}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/service.Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            SERVICE=${{ matrix.service }}
+            VERSION=${{ env.IMAGE_VERSION }}
+            VCS_REF=${{ github.sha }}
+            SOURCE=${{ github.server_url }}/${{ github.repository }}
+          labels: |
+            org.opencontainers.image.title=commercehub-${{ matrix.service }}
+            org.opencontainers.image.description=CommerceHub ${{ matrix.service }}
+            org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}

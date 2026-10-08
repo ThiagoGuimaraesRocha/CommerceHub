@@ -1,0 +1,38 @@
+# Applied by scripts/argocd-install.sh (placeholders substituted).
+# Secrets and commercehub-runtime stay cluster-local and are not synced from Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: commercehub
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: commercehub
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ThiagoGuimaraesRocha/CommerceHub.git
+    targetRevision: main
+    path: deploy/openshift
+    kustomize:
+      images:
+        - ghcr.io/local/commercehub-user-service=ghcr.io/__GHCR_OWNER__/commercehub-user-service:__IMAGE_TAG__
+        - ghcr.io/local/commercehub-product-service=ghcr.io/__GHCR_OWNER__/commercehub-product-service:__IMAGE_TAG__
+        - ghcr.io/local/commercehub-order-service=ghcr.io/__GHCR_OWNER__/commercehub-order-service:__IMAGE_TAG__
+        - ghcr.io/local/commercehub-inventory-service=ghcr.io/__GHCR_OWNER__/commercehub-inventory-service:__IMAGE_TAG__
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: commercehub
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: batch
+      kind: Job
+      jsonPointers:
+        - /status
+        - /metadata/uid
+        - /metadata/resourceVersion

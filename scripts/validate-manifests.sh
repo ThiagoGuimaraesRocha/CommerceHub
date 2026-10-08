@@ -77,13 +77,37 @@ for name in required:
         if "route.openshift.io/v1" not in text:
             print(f"{path}: Route must use route.openshift.io/v1")
             errors += 1
+    if name.endswith("-deployment.yaml"):
+        if "commercehub-runtime" not in text:
+            print(f"{path}: expected commercehub-runtime ConfigMap (host-specific, not in Git)")
+            errors += 1
+    if name.endswith("-migrate-job.yaml"):
+        if "argocd.argoproj.io/hook: PreSync" not in text:
+            print(f"{path}: migrate Job should be an Argo CD PreSync hook")
+            errors += 1
+        if "commercehub-runtime" not in text:
+            print(f"{path}: expected commercehub-runtime ConfigMap (host-specific, not in Git)")
+            errors += 1
     if name == "configmap.yaml":
-        if "__INFRA_HOST__" not in text:
-            print(f"{path}: expected __INFRA_HOST__ placeholder (secrets stay out of git)")
+        if "__INFRA_HOST__" in text or "DB_URL:" in text:
+            print(f"{path}: host-specific DB/Kafka/OTEL belong in commercehub-runtime, not Git")
             errors += 1
         if 'FLYWAY_MIGRATE_AT_START: "false"' not in text:
             print(f"{path}: application pods must set FLYWAY_MIGRATE_AT_START=false")
             errors += 1
+
+argocd = pathlib.Path(root).parent / "argocd" / "application.yaml"
+if not argocd.is_file():
+    print(f"missing {argocd}")
+    errors += 1
+else:
+    text = argocd.read_text()
+    if "kind: Application" not in text or "argoproj.io" not in text:
+        print(f"{argocd}: expected Argo CD Application")
+        errors += 1
+    if "__GHCR_OWNER__" not in text or "__IMAGE_TAG__" not in text:
+        print(f"{argocd}: expected image placeholders for install-time substitution")
+        errors += 1
 
 if errors:
     sys.exit(1)
@@ -96,6 +120,7 @@ for script in \
   "${ROOT_DIR}/scripts/openshift-apply.sh" \
   "${ROOT_DIR}/scripts/openshift-rollback.sh" \
   "${ROOT_DIR}/scripts/microshift-start.sh" \
+  "${ROOT_DIR}/scripts/argocd-install.sh" \
   "${ROOT_DIR}/scripts/validate-manifests.sh"
 do
   bash -n "${script}"

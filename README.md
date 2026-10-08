@@ -1,6 +1,7 @@
 # CommerceHub
 
 [![CI](https://github.com/ThiagoGuimaraesRocha/CommerceHub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ThiagoGuimaraesRocha/CommerceHub/actions/workflows/ci.yml)
+[![GHCR](https://img.shields.io/badge/GHCR-commercehub-blue)](https://github.com/ThiagoGuimaraesRocha/CommerceHub/pkgs/container/commercehub-user-service)
 ![Java 21](https://img.shields.io/badge/Java-21-007396)
 ![Quarkus 3.33 LTS](https://img.shields.io/badge/Quarkus-3.33%20LTS-4695EB)
 ![Oracle Database Free](https://img.shields.io/badge/Oracle-Database%20Free%2023-F80000)
@@ -29,6 +30,8 @@ OpenShift, observability and CI/CD/GitOps.
 - **Reproducible local stack** with Docker Compose, pinned image tags and digests, no secrets in Git.
 - **Local OpenShift**: MicroShift/OKD via Podman; the four services deploy from `deploy/openshift`
   (Routes, probes, Flyway Jobs). Oracle and Kafka stay in Compose.
+- **CI/CD and GitOps**: GitHub Actions publishes versioned images to GHCR; Argo CD syncs
+  `deploy/openshift`; a Jenkinsfile mirrors the verify path.
 - **Architecture decisions recorded** as ADRs.
 
 ## Status
@@ -42,10 +45,10 @@ OpenShift, observability and CI/CD/GitOps.
 | S5 | User Service + JWT | Done |
 | S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Done |
 | S7 | OpenShift deployment (local MicroShift/OKD) | Done |
-| S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
+| S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Done |
 
 Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr). Project plan (Portuguese):
-[`docs/plano/CommerceHub_Plano_Base_v0.9.md`](docs/plano/CommerceHub_Plano_Base_v0.9.md).
+[`docs/plano/CommerceHub_Plano_Base_v1.0.md`](docs/plano/CommerceHub_Plano_Base_v1.0.md).
 
 ## Architecture
 
@@ -110,9 +113,9 @@ or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already e
 | API docs | SmallRye OpenAPI + Swagger UI, Postman collection |
 | Tests | JUnit 5, Mockito, AssertJ, REST Assured, Quarkus Dev Services (Testcontainers) |
 | Observability | OpenTelemetry, Jaeger v2 `2.21.0`, Prometheus `v3.15.0`, Grafana OSS `12.2.0` |
-| Build / CI | Maven Wrapper 3.9.16, GitHub Actions (`validate-manifests.sh` + `./mvnw verify`) |
-| Containers | Multi-stage Dockerfile, `ubi9/openjdk-21-runtime` (OpenShift-ready), Docker Compose |
-| Platform | MicroShift/OKD (Podman bootc), OpenShift Routes, Kustomize manifests |
+| Build / CI | Maven Wrapper 3.9.16, GitHub Actions (`validate-manifests.sh` + `./mvnw verify` + GHCR publish) |
+| Containers | Multi-stage Dockerfile, `ubi9/openjdk-21-runtime` (OpenShift-ready), Docker Compose, GHCR |
+| Platform | MicroShift/OKD (Podman bootc), OpenShift Routes, Kustomize, Argo CD `v3.5.4` |
 
 ## Quick start
 
@@ -181,6 +184,7 @@ Linux + rootful Podman. Oracle and Kafka stay in Compose; the four services run 
 
 Guide: [`docs/deploy/openshift.md`](docs/deploy/openshift.md). Rollback: `./scripts/openshift-rollback.sh order-service`.
 Seed through Routes: `./scripts/seed.sh http://<product-route> http://<inventory-route> http://<user-route>`.
+GitOps (Argo CD): `GITOPS=1 ./scripts/up.sh` — [guide](docs/deploy/gitops.md).
 
 ## API
 
@@ -286,14 +290,17 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 ├── infra/prometheus/             # Prometheus scrape config
 ├── infra/grafana/                # provisioned datasources and CommerceHub dashboard
 ├── data/seed/                    # demo data, loaded through the APIs
-├── scripts/                      # up.sh (Compose + MicroShift), seed.sh, rollback
+├── scripts/                      # up.sh, seed.sh, OpenShift apply/rollback, Argo CD install
 ├── deploy/openshift/             # Namespace, ConfigMap, Deployments, Jobs, Routes
+├── deploy/argocd/                # Argo CD Application and Route
+├── Jenkinsfile                   # alternative verify pipeline
 ├── postman/                      # Postman collection and environment
-├── .github/workflows/ci.yml      # manifest check + ./mvnw verify
+├── .github/workflows/ci.yml      # manifests + ./mvnw verify + GHCR publish on main
 └── docs/
     ├── adr/                      # architecture decision records
-    ├── deploy/                   # OpenShift deploy and rollback guide
+    ├── deploy/                   # OpenShift, GitOps and GHCR
     ├── events/                   # Kafka envelope, topics and message catalog
+    ├── portfolio/                # screenshot / demo-video capture checklist
     └── sprints/                  # sprint notes and Definition of Done evidence
 ```
 
@@ -312,6 +319,7 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | [0009](docs/adr/0009-local-openshift.md) | Local OpenShift with MicroShift (OKD) |
 | [0010](docs/adr/0010-demo-jwt.md) | Demonstration JWT (not a corporate IdP) |
 | [0011](docs/adr/0011-distributed-observability.md) | OpenTelemetry, Jaeger v2, Prometheus and Grafana |
+| [0012](docs/adr/0012-cicd-gitops-ghcr.md) | GHCR publish, Argo CD GitOps, Jenkinsfile |
 
 ## Conventions
 
