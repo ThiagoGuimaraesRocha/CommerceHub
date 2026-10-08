@@ -2,6 +2,7 @@ package com.commercehub.order.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.commercehub.order.application.OrderSagaService;
 import com.commercehub.order.domain.entity.OrderEntity;
 import com.commercehub.order.domain.enumtype.CancellationReason;
 import com.commercehub.order.domain.enumtype.CancelledBy;
@@ -11,11 +12,8 @@ import com.commercehub.order.infrastructure.messaging.MessageSerde;
 import com.commercehub.order.infrastructure.messaging.payload.InventoryReservationFailedPayload;
 import com.commercehub.order.infrastructure.messaging.payload.InventoryReservedPayload;
 import com.commercehub.order.infrastructure.persistence.OrderRepository;
-import com.commercehub.order.support.AwaitAssertions;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
-import io.smallrye.reactive.messaging.memory.InMemoryConnector;
-import jakarta.enterprise.inject.Any;
 import jakarta.inject.Inject;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -28,8 +26,7 @@ import org.junit.jupiter.api.Test;
 class InventoryEventConsumerTest {
 
     @Inject
-    @Any
-    InMemoryConnector connector;
+    OrderSagaService saga;
 
     @Inject
     OrderRepository orderRepository;
@@ -41,26 +38,22 @@ class InventoryEventConsumerTest {
     void inventoryReservedMovesOrder() {
         OrderEntity order = persistConfirmedOrder();
 
-        connector.source("inventory-events").send(reserved(order.getId()));
+        saga.handleInventoryEvent(reserved(order.getId()));
 
-        AwaitAssertions.untilAsserted(() -> {
-            OrderEntity reloaded = orderRepository.findById(order.getId());
-            assertThat(reloaded.getStatus()).isEqualTo(OrderStatus.INVENTORY_RESERVED);
-        });
+        OrderEntity reloaded = orderRepository.findById(order.getId());
+        assertThat(reloaded.getStatus()).isEqualTo(OrderStatus.INVENTORY_RESERVED);
     }
 
     @Test
     void inventoryReservationFailedCancelsBySystem() {
         OrderEntity order = persistConfirmedOrder();
 
-        connector.source("inventory-events").send(failed(order.getId()));
+        saga.handleInventoryEvent(failed(order.getId()));
 
-        AwaitAssertions.untilAsserted(() -> {
-            OrderEntity reloaded = orderRepository.findById(order.getId());
-            assertThat(reloaded.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-            assertThat(reloaded.getCancelledBy()).isEqualTo(CancelledBy.SYSTEM);
-            assertThat(reloaded.getCancellationReason()).isEqualTo(CancellationReason.INSUFFICIENT_STOCK);
-        });
+        OrderEntity reloaded = orderRepository.findById(order.getId());
+        assertThat(reloaded.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(reloaded.getCancelledBy()).isEqualTo(CancelledBy.SYSTEM);
+        assertThat(reloaded.getCancellationReason()).isEqualTo(CancellationReason.INSUFFICIENT_STOCK);
     }
 
     private OrderEntity persistConfirmedOrder() {
@@ -75,8 +68,8 @@ class InventoryEventConsumerTest {
         });
     }
 
-    private String reserved(String orderId) {
-        EventEnvelope envelope = new EventEnvelope(
+    private EventEnvelope reserved(String orderId) {
+        return new EventEnvelope(
                 UUID.randomUUID().toString(),
                 "InventoryReserved",
                 EventEnvelope.KIND_EVENT,
@@ -89,11 +82,10 @@ class InventoryEventConsumerTest {
                 UUID.randomUUID().toString(),
                 serde.toTree(new InventoryReservedPayload(orderId, List.of(
                         new InventoryReservedPayload.Reservation(UUID.randomUUID().toString(), "p1", 1)))));
-        return serde.toJson(envelope);
     }
 
-    private String failed(String orderId) {
-        EventEnvelope envelope = new EventEnvelope(
+    private EventEnvelope failed(String orderId) {
+        return new EventEnvelope(
                 UUID.randomUUID().toString(),
                 "InventoryReservationFailed",
                 EventEnvelope.KIND_EVENT,
@@ -106,6 +98,5 @@ class InventoryEventConsumerTest {
                 UUID.randomUUID().toString(),
                 serde.toTree(new InventoryReservationFailedPayload(orderId, "INSUFFICIENT_STOCK", List.of(
                         new InventoryReservationFailedPayload.UnavailableItem("p1", 2, 0)))));
-        return serde.toJson(envelope);
     }
 }
