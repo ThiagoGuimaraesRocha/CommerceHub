@@ -12,16 +12,16 @@ Product Service REST API. Confirm and cancel write to the transactional outbox (
 
 | Method | Path | Description | Success | Errors |
 | --- | --- | --- | --- | --- |
-| `POST` | `/api/v1/orders` | Create an order with items | 201 + `Location` | 400, 503 |
-| `GET` | `/api/v1/orders?customerId=` | List orders for a customer | 200 | 400 |
-| `GET` | `/api/v1/orders/{id}` | Get by id | 200 | 404 |
-| `POST` | `/api/v1/orders/{id}/confirm` | `CREATED -> CONFIRMED` and outbox `OrderConfirmed` | 200 | 404, 409 |
-| `GET` | `/api/v1/orders/cancellation-reasons` | Customer-selectable reasons | 200 | |
-| `POST` | `/api/v1/orders/{id}/cancel` | Cancel while `CREATED` or `INVENTORY_RESERVED` | 200 | 400, 404, 409 |
+| `POST` | `/api/v1/orders` | Create an order with items | 201 + `Location` | 400, 401, 503 |
+| `GET` | `/api/v1/orders` | List orders for the authenticated customer | 200 | 401 |
+| `GET` | `/api/v1/orders/{id}` | Get by id (own orders only) | 200 | 401, 403, 404 |
+| `POST` | `/api/v1/orders/{id}/confirm` | `CREATED -> CONFIRMED` and outbox `OrderConfirmed` | 200 | 401, 403, 404, 409 |
+| `GET` | `/api/v1/orders/cancellation-reasons` | Customer-selectable reasons | 200 | 401 |
+| `POST` | `/api/v1/orders/{id}/cancel` | Cancel while `CREATED` or `INVENTORY_RESERVED` | 200 | 400, 401, 403, 404, 409 |
 
 ### Rules
 
-- `customerId` is sent in the body until Sprint 5 (JWT).
+- `customerId` comes from the JWT subject (`sub`/`upn`). It is not accepted in the request body.
 - Each product may appear only once in an order.
 - Unit price, SKU and product name are snapshotted from Product Service; totals are calculated in the backend.
 - Unknown or inactive product → 400 `unknown-product`; Product Service down → 503 `product-service-unavailable`.
@@ -44,13 +44,15 @@ Create:
 ```bash
 curl -i -X POST http://localhost:8083/api/v1/orders \
   -H 'Content-Type: application/json' \
-  -d '{"customerId":"11111111-1111-1111-1111-111111111111","items":[{"productId":"<product-id>","quantity":2}]}'
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"items":[{"productId":"<product-id>","quantity":2}]}'
 ```
 
 Confirm:
 
 ```bash
-curl -X POST http://localhost:8083/api/v1/orders/<id>/confirm
+curl -X POST http://localhost:8083/api/v1/orders/<id>/confirm \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Cancel:
@@ -58,6 +60,7 @@ Cancel:
 ```bash
 curl -X POST http://localhost:8083/api/v1/orders/<id>/cancel \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"reasonCode":"CHANGED_MIND"}'
 ```
 
@@ -91,6 +94,7 @@ curl -X POST http://localhost:8083/api/v1/orders/<id>/cancel \
 | `unit/OrderSagaServiceTest` | Inventory events advance or cancel the order |
 | `unit/CustomerCancellationCompensationTest` | Cancel after `INVENTORY_RESERVED` |
 | `api/OrderResourceTest` | HTTP contract with REST Assured on Oracle |
+| `api/SecurityIT` | 401 without token; 403 on another customer's order |
 | `api/HealthEndpointTest` | Health and OpenAPI |
 | `api/InventoryEventConsumerTest` | In-memory inventory events |
 | `integration/OrderRepositoryIT` | Oracle mapping and cancellation constraints |

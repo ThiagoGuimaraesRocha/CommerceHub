@@ -4,6 +4,7 @@ import com.commercehub.inventory.api.dto.InventoryResponse;
 import com.commercehub.inventory.api.dto.SetStockRequest;
 import com.commercehub.inventory.application.InventoryService;
 import com.commercehub.inventory.exception.ProblemDetail;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
@@ -17,15 +18,18 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
- * Administrative stock endpoint. Open until Sprint 5, when it will require the {@code ADMIN} role.
+ * Administrative stock endpoint. Requires the {@code ADMIN} role.
  * Demo data is loaded through this endpoint (by {@code scripts/seed.sh}), never written to the database directly.
  */
 @Path("/api/v1/inventory")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@RolesAllowed("ADMIN")
+@SecurityRequirement(name = "bearer")
 @Tag(name = "Inventory", description = "Administrative stock balance")
 public class InventoryAdminResource {
 

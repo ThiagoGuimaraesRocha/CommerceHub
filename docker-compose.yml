@@ -79,10 +79,16 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: user-service
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.1.0
+        VERSION: 0.5.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.5.0
     environment:
       DB_URL: *db-url
       USER_DB_PASSWORD: ${USER_DB_PASSWORD}
+      JWT_ISSUER: ${JWT_ISSUER:-https://commercehub.example/issuer}
+      JWT_LIFESPAN_SECONDS: ${JWT_LIFESPAN_SECONDS:-3600}
+      DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
+      DEMO_ADMIN_FULL_NAME: ${DEMO_ADMIN_FULL_NAME:-CommerceHub Admin}
     ports:
       - "8081:8080"
 
@@ -93,11 +99,12 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: product-service
-        VERSION: 0.2.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.2.0
+        VERSION: 0.5.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.5.0
     environment:
       DB_URL: *db-url
       PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
+      JWT_ISSUER: ${JWT_ISSUER:-https://commercehub.example/issuer}
     ports:
       - "8082:8080"
 
@@ -108,13 +115,14 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: order-service
-        VERSION: 0.4.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.4.0
+        VERSION: 0.5.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.5.0
     environment:
       DB_URL: *db-url
       ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
       PRODUCT_SERVICE_URL: http://product-service:8080
       KAFKA_BOOTSTRAP_SERVERS: *kafka-bootstrap
+      JWT_ISSUER: ${JWT_ISSUER:-https://commercehub.example/issuer}
     ports:
       - "8083:8080"
     depends_on:
@@ -132,12 +140,13 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: inventory-service
-        VERSION: 0.4.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.4.0
+        VERSION: 0.5.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.5.0
     environment:
       DB_URL: *db-url
       INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: *kafka-bootstrap
+      JWT_ISSUER: ${JWT_ISSUER:-https://commercehub.example/issuer}
     ports:
       - "8084:8080"
     depends_on:

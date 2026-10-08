@@ -12,6 +12,7 @@ import com.commercehub.order.domain.enumtype.CancellationReason;
 import com.commercehub.order.exception.CurrencyMismatchException;
 import com.commercehub.order.exception.DuplicateProductInOrderException;
 import com.commercehub.order.exception.OrderNotFoundException;
+import com.commercehub.order.exception.OrderNotOwnedException;
 import com.commercehub.order.exception.RemoteProductServiceException;
 import com.commercehub.order.domain.enumtype.OrderStatus;
 import com.commercehub.order.exception.UnknownProductException;
@@ -63,11 +64,11 @@ public class OrderApplicationService {
     }
 
     @Transactional
-    public OrderResponse create(CreateOrderRequest request) {
+    public OrderResponse create(String customerId, CreateOrderRequest request) {
         assertUniqueProducts(request.items());
 
         OrderEntity order = OrderEntity.newOrder();
-        order.setCustomerId(request.customerId().trim());
+        order.setCustomerId(customerId.trim());
 
         String currency = null;
         for (OrderItemRequest itemRequest : request.items()) {
@@ -97,8 +98,8 @@ public class OrderApplicationService {
         return mapper.toResponse(order);
     }
 
-    public OrderResponse findById(String id) {
-        return mapper.toResponse(load(id));
+    public OrderResponse findById(String id, String customerId) {
+        return mapper.toResponse(loadOwned(id, customerId));
     }
 
     public List<OrderResponse> findByCustomerId(String customerId) {
@@ -106,16 +107,16 @@ public class OrderApplicationService {
     }
 
     @Transactional
-    public OrderResponse confirm(String id) {
-        OrderEntity order = load(id);
+    public OrderResponse confirm(String id, String customerId) {
+        OrderEntity order = loadOwned(id, customerId);
         transitions.confirm(order);
         outboxWriter.writeEvent("OrderConfirmed", KafkaTopics.ORDER_EVENTS, order.getId(), null, toConfirmedPayload(order));
         return mapper.toResponse(order);
     }
 
     @Transactional
-    public OrderResponse cancel(String id, CancelOrderRequest request) {
-        OrderEntity order = load(id);
+    public OrderResponse cancel(String id, String customerId, CancelOrderRequest request) {
+        OrderEntity order = loadOwned(id, customerId);
         OrderStatus previousStatus = order.getStatus();
         cancellationService.cancelByCustomer(order, request);
         outboxWriter.writeEvent("OrderCancelled", KafkaTopics.ORDER_EVENTS, order.getId(), null,
@@ -171,5 +172,13 @@ public class OrderApplicationService {
 
     private OrderEntity load(String id) {
         return repository.findByIdOptional(id).orElseThrow(() -> new OrderNotFoundException(id));
+    }
+
+    private OrderEntity loadOwned(String id, String customerId) {
+        OrderEntity order = load(id);
+        if (!order.getCustomerId().equals(customerId)) {
+            throw new OrderNotOwnedException(order.getId());
+        }
+        return order;
     }
 }

@@ -64,15 +64,14 @@ class KafkaIntegrationTest {
     @Test
     void confirmPublishesExactlyOneOrderConfirmedOnTheBroker() {
         String productId = UUID.randomUUID().toString();
-        OrderResponse created = orders.create(new CreateOrderRequest(
-                "11111111-1111-1111-1111-111111111111",
-                List.of(new OrderItemRequest(productId, 2L))));
+        OrderResponse created = orders.create("11111111-1111-1111-1111-111111111111",
+                new CreateOrderRequest(List.of(new OrderItemRequest(productId, 2L))));
 
         try (KafkaConsumer<String, String> consumer = consumer()) {
             consumer.subscribe(List.of(KafkaTopics.ORDER_EVENTS));
             consumer.poll(Duration.ofMillis(200));
 
-            orders.confirm(created.id());
+            orders.confirm(created.id(), created.customerId());
             outboxRelay.drain();
 
             EventEnvelope found = pollFor(consumer, created.id(), "OrderConfirmed", Duration.ofSeconds(20));
