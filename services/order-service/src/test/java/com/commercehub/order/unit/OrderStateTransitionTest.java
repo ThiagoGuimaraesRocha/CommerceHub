@@ -33,4 +33,14 @@ class OrderStateTransitionTest {
     void allowsCreatedToCancelled() {
         assertThat(transitions.isAllowed(OrderStatus.CREATED, OrderStatus.CANCELLED)).isTrue();
     }
+
+    @Test
+    void allowsConfirmedToInventoryReserved() {
+        assertThat(transitions.isAllowed(OrderStatus.CONFIRMED, OrderStatus.INVENTORY_RESERVED)).isTrue();
+    }
+
+    @Test
+    void allowsInventoryReservedToCancelled() {
+        assertThat(transitions.isAllowed(OrderStatus.INVENTORY_RESERVED, OrderStatus.CANCELLED)).isTrue();
+    }
 }

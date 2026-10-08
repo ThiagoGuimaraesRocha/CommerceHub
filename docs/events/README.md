@@ -4,7 +4,7 @@ Contract for every message exchanged through Kafka in CommerceHub. It formalizes
 the plan (v0.3, sections 5.4–5.6) and is the source of truth for the Java DTOs that each service copies
 (no shared library, see [ADR 0001](../adr/0001-microservices-with-quarkus.md)).
 
-Status: **accepted for Sprint 3/4**. Messages marked *future* are reserved names; their payloads may change
+Status: **implemented in Sprint 4**. Messages marked *future* are reserved names; their payloads may change
 when the Payment Service is designed.
 
 ## Events vs commands

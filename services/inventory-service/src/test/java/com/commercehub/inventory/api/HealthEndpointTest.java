@@ -2,6 +2,7 @@ package com.commercehub.inventory.api;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
@@ -25,5 +26,14 @@ class HealthEndpointTest {
                 .then()
                 .statusCode(200)
                 .body("status", equalTo("UP"));
+    }
+
+    @Test
+    void openApiIsAvailable() {
+        given()
+                .when().get("/q/openapi?format=json")
+                .then()
+                .statusCode(200)
+                .body("info.title", notNullValue());
     }
 }

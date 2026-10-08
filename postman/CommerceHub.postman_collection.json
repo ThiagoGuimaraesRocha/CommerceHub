@@ -37,6 +37,14 @@
     {
       "key": "cancelOrderId",
       "value": ""
+    },
+    {
+      "key": "inventoryProductId",
+      "value": ""
+    },
+    {
+      "key": "inventoryProductSku",
+      "value": ""
     }
   ],
   "item": [
@@ -715,6 +723,180 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    { \"productId\": \"00000000-0000-0000-0000-000000000000\", \"quantity\": 1 }\n  ]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory Service",
+      "description": "Administrative stock API. OpenAPI: {{inventoryServiceUrl}}/q/openapi — Swagger UI: {{inventoryServiceUrl}}/q/swagger-ui.\\n\\nCreates its own product so the collection does not depend on leftover catalog rows. Seed data in production-like runs uses scripts/seed.sh (SKU → productId → PUT).",
+      "item": [
+        {
+          "name": "Create product for inventory",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = Date.now().toString(36).toUpperCase();",
+                  "pm.collectionVariables.set('inventoryProductSku', 'INV-PROD-' + suffix);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('inventoryProductId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{productServiceUrl}}/api/v1/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{inventoryProductSku}}\",\n  \"name\": \"Inventory Demo Product\",\n  \"categoryCode\": \"PERIPHERALS\",\n  \"price\": 19.9\n}"
+            }
+          }
+        },
+        {
+          "name": "Set stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 stock set', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.productId).to.eql(pm.collectionVariables.get('inventoryProductId'));",
+                  "  pm.expect(body.availableQuantity).to.eql(50);",
+                  "  pm.expect(body.reservedQuantity).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"availableQuantity\": 50\n}"
+            }
+          }
+        },
+        {
+          "name": "Get stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 stock', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().availableQuantity).to.eql(50);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}"
+          }
+        },
+        {
+          "name": "Adjust stock (idempotent PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 adjusted', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().availableQuantity).to.eql(40); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"availableQuantity\": 40\n}"
+            }
+          }
+        },
+        {
+          "name": "Unknown product (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 inventory-item-not-found', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:inventory-item-not-found'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{inventoryServiceUrl}}/api/v1/inventory/00000000-0000-0000-0000-000000000000"
+          }
+        },
+        {
+          "name": "Negative quantity (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 validation-error', () => { pm.response.to.have.status(400); pm.expect(pm.response.json().type).to.eql('urn:commercehub:problem:validation-error'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"availableQuantity\": -1\n}"
             }
           }
         }

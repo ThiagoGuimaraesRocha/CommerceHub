@@ -86,7 +86,8 @@ public class OrderResource {
     @POST
     @Path("/{id}/confirm")
     @Consumes(MediaType.WILDCARD)
-    @Operation(summary = "Confirm an order", description = "Validates CREATED -> CONFIRMED. Event publishing arrives in Sprint 4.")
+    @Operation(summary = "Confirm an order",
+            description = "Validates CREATED -> CONFIRMED and writes OrderConfirmed to the outbox in the same transaction.")
     @APIResponse(responseCode = "200", description = "Order confirmed",
             content = @Content(schema = @Schema(implementation = OrderResponse.class)))
     @APIResponse(responseCode = "404", description = "Order not found",
@@ -99,7 +100,8 @@ public class OrderResource {
 
     @POST
     @Path("/{id}/cancel")
-    @Operation(summary = "Cancel an order", description = "Customer cancellation while CREATED (or INVENTORY_RESERVED from Sprint 4).")
+    @Operation(summary = "Cancel an order",
+            description = "Customer cancellation while CREATED (no side effects) or INVENTORY_RESERVED (emits OrderCancelled + ReleaseInventory).")
     @APIResponse(responseCode = "200", description = "Order cancelled",
             content = @Content(schema = @Schema(implementation = OrderResponse.class)))
     @APIResponse(responseCode = "400", description = "Invalid reason or missing note",

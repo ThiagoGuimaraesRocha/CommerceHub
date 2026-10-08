@@ -1,7 +1,8 @@
 # Order Service
 
-Orders of CommerceHub: creation, query, confirmation and customer cancellation. Owns `ORDER_SCHEMA`.
-Product price, SKU and name are snapshotted at purchase time through the Product Service REST API.
+Orders of CommerceHub: creation, query, confirmation and customer cancellation. Owns `ORDER_SCHEMA` and
+coordinates the order saga. Product price, SKU and name are snapshotted at purchase time through the
+Product Service REST API. Confirm and cancel write to the transactional outbox (Sprint 4).
 
 - OpenAPI: `http://localhost:8083/q/openapi`
 - Swagger UI: `http://localhost:8083/q/swagger-ui`
@@ -14,9 +15,9 @@ Product price, SKU and name are snapshotted at purchase time through the Product
 | `POST` | `/api/v1/orders` | Create an order with items | 201 + `Location` | 400, 503 |
 | `GET` | `/api/v1/orders?customerId=` | List orders for a customer | 200 | 400 |
 | `GET` | `/api/v1/orders/{id}` | Get by id | 200 | 404 |
-| `POST` | `/api/v1/orders/{id}/confirm` | `CREATED -> CONFIRMED` | 200 | 404, 409 |
+| `POST` | `/api/v1/orders/{id}/confirm` | `CREATED -> CONFIRMED` and outbox `OrderConfirmed` | 200 | 404, 409 |
 | `GET` | `/api/v1/orders/cancellation-reasons` | Customer-selectable reasons | 200 | |
-| `POST` | `/api/v1/orders/{id}/cancel` | Cancel while `CREATED` | 200 | 400, 404, 409 |
+| `POST` | `/api/v1/orders/{id}/cancel` | Cancel while `CREATED` or `INVENTORY_RESERVED` | 200 | 400, 404, 409 |
 
 ### Rules
 
@@ -25,7 +26,16 @@ Product price, SKU and name are snapshotted at purchase time through the Product
 - Unit price, SKU and product name are snapshotted from Product Service; totals are calculated in the backend.
 - Unknown or inactive product → 400 `unknown-product`; Product Service down → 503 `product-service-unavailable`.
 - Customer cancellation requires a selectable `reasonCode`; `OTHER` requires `note`.
-- Cancelling while `CONFIRMED` returns 409 `order-awaiting-inventory` (reservation in progress from Sprint 4).
+- Cancelling while `CONFIRMED` returns 409 `order-awaiting-inventory` (reservation in progress).
+- Cancelling while `INVENTORY_RESERVED` also writes `ReleaseInventory` to the outbox.
+
+### Kafka
+
+| Channel | Topic | Role |
+| --- | --- | --- |
+| outbox relay | `commerce.order.events` | `OrderConfirmed`, `OrderCancelled` |
+| outbox relay | `commerce.inventory.commands` | `ReleaseInventory` |
+| incoming `inventory-events` | `commerce.inventory.events` | `InventoryReserved` → `INVENTORY_RESERVED`; `InventoryReservationFailed` → `CANCELLED` |
 
 ## Examples
 
@@ -62,6 +72,7 @@ curl -X POST http://localhost:8083/api/v1/orders/<id>/cancel \
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PRODUCT_SERVICE_URL` | `http://localhost:8082` | Product Service base URL for the REST client |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:29092` | Kafka bootstrap (Compose in-cluster: `kafka:9092`) |
 | `ORDER_DB_PASSWORD` | required | Schema password |
 | `DB_URL` | local Oracle JDBC URL | Datasource |
 
@@ -76,10 +87,14 @@ curl -X POST http://localhost:8083/api/v1/orders/<id>/cancel \
 | `unit/OrderCalculatorTest` | Totals |
 | `unit/OrderStateTransitionTest` | State machine |
 | `unit/OrderCancellationTest` | Cancellation rules |
-| `unit/OrderApplicationServiceTest` | Create flow with mocked ProductClient |
+| `unit/OrderApplicationServiceTest` | Create/confirm/cancel with mocked ProductClient and outbox |
+| `unit/OrderSagaServiceTest` | Inventory events advance or cancel the order |
+| `unit/CustomerCancellationCompensationTest` | Cancel after `INVENTORY_RESERVED` |
 | `api/OrderResourceTest` | HTTP contract with REST Assured on Oracle |
 | `api/HealthEndpointTest` | Health and OpenAPI |
+| `api/InventoryEventConsumerTest` | In-memory inventory events |
 | `integration/OrderRepositoryIT` | Oracle mapping and cancellation constraints |
 | `integration/ProductClientIT` | REST client against WireMock |
+| `integration/KafkaIntegrationTest` | Real broker publishes `OrderConfirmed` |
 
 Oracle is started automatically by Quarkus Dev Services (Docker required).
