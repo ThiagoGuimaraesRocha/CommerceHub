@@ -31,7 +31,7 @@ OpenShift, observability and CI/CD/GitOps.
 | --- | --- | --- |
 | S1 | Foundation: monorepo, Maven/Quarkus, Oracle, Docker Compose, ADRs | Done |
 | S2 | Product Service: CRUD, Flyway, Problem Details, OpenAPI, tests, Postman, CI | Done |
-| S3 | Order Service: orders, items, REST integration with Product Service | Next |
+| S3 | Order Service: orders, items, REST integration with Product Service | Done |
 | S4 | Kafka + Inventory Service: saga, outbox, idempotency, stock admin endpoint | Planned |
 | S5 | User Service + JWT | Planned |
 | S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Planned |
@@ -39,7 +39,7 @@ OpenShift, observability and CI/CD/GitOps.
 | S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
 
 Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr). Project plan (Portuguese):
-[`docs/plano/CommerceHub_Plano_Base_v0.4.md`](docs/plano/CommerceHub_Plano_Base_v0.4.md).
+[`docs/plano/CommerceHub_Plano_Base_v0.5.md`](docs/plano/CommerceHub_Plano_Base_v0.5.md).
 
 ## Architecture
 
@@ -88,7 +88,7 @@ or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already e
 | --- | --- | --- | --- | --- |
 | `user-service` | Customers and demo JWT authentication | `USER_SCHEMA` | 8081 | 8080 |
 | [`product-service`](services/product-service/README.md) | Catalog, prices and categories | `PRODUCT_SCHEMA` | 8082 | 8080 |
-| `order-service` | Orders, items and order lifecycle (saga owner) | `ORDER_SCHEMA` | 8083 | 8080 |
+| [`order-service`](services/order-service/README.md) | Orders, items and order lifecycle (saga owner) | `ORDER_SCHEMA` | 8083 | 8080 |
 | `inventory-service` | Stock, reservations, idempotent event consumption | `INVENTORY_SCHEMA` | 8084 | 8080 |
 
 ## Tech stack
@@ -209,6 +209,7 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | `ORACLE_PASSWORD` | none (required) | Oracle `SYS`/`SYSTEM` |
 | `ORACLE_HOST_PORT` | `1521` | host port mapped to Oracle |
 | `FLYWAY_MIGRATE_AT_START` | `true` | services with persistence |
+| `PRODUCT_SERVICE_URL` | `http://localhost:8082` | order-service REST client |
 | `GHCR_OWNER` | `local` | image prefix `ghcr.io/<owner>/commercehub-<service>` |
 
 `.env` is ignored by Git. Oracle reads the passwords only on its first start; to change them, run
