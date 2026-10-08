@@ -8,13 +8,13 @@ Product catalog of CommerceHub: SKU, name, category, price and active flag. Owns
 
 ## Endpoints
 
-| Method | Path | Description | Success | Errors |
-| --- | --- | --- | --- | --- |
-| `POST` | `/api/v1/products` | Create a product | 201 + `Location` | 400, 409 `duplicate-sku` |
-| `GET` | `/api/v1/products` | List (filters `category`, `active`; `page`, `size`) | 200 | 400 |
-| `GET` | `/api/v1/products/{id}` | Get by id | 200 | 404 |
-| `PUT` | `/api/v1/products/{id}` | Full update with optimistic locking | 200 | 400, 404, 409 `duplicate-sku` / `stale-version` |
-| `DELETE` | `/api/v1/products/{id}` | Soft delete (`active=false`) | 204 | 404 |
+| Method | Path | Auth | Description | Success | Errors |
+| --- | --- | --- | --- | --- | --- |
+| `POST` | `/api/v1/products` | `ADMIN` | Create a product | 201 + `Location` | 400, 401, 403, 409 `duplicate-sku` |
+| `GET` | `/api/v1/products` | public | List (filters `category`, `active`; `page`, `size`) | 200 | 400 |
+| `GET` | `/api/v1/products/{id}` | public | Get by id | 200 | 404 |
+| `PUT` | `/api/v1/products/{id}` | `ADMIN` | Full update with optimistic locking | 200 | 400, 401, 403, 404, 409 |
+| `DELETE` | `/api/v1/products/{id}` | `ADMIN` | Soft delete (`active=false`) | 204 | 401, 403, 404 |
 
 ### Rules
 
@@ -28,9 +28,12 @@ Product catalog of CommerceHub: SKU, name, category, price and active flag. Owns
 
 Create:
 
+Writes need an `ADMIN` Bearer token from the User Service. Catalog GET stays public.
+
 ```bash
 curl -i -X POST http://localhost:8082/api/v1/products \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"sku":"KB-MECH-001","name":"Mechanical Keyboard","categoryCode":"PERIPHERALS","price":349.9}'
 ```
 
@@ -55,6 +58,7 @@ Update (send the current `version`):
 ```bash
 curl -X PUT http://localhost:8082/api/v1/products/<id> \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"sku":"KB-MECH-001","name":"Mechanical Keyboard","categoryCode":"PERIPHERALS","price":329.9,"currencyCode":"BRL","active":true,"version":0}'
 ```
 
@@ -101,6 +105,7 @@ Validation error:
 | --- | --- |
 | `unit/ProductServiceTest` | Business rules with Mockito |
 | `api/ProductResourceTest` | HTTP contract with REST Assured on Oracle |
+| `api/SecurityIT` | Public GET; 401/403 on writes |
 | `api/HealthEndpointTest` | Health and OpenAPI |
 | `integration/ProductRepositoryIT` | Oracle mapping, unique SKU, optimistic locking, timestamps |
 

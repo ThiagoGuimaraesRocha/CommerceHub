@@ -75,9 +75,8 @@ class OrderApplicationServiceTest {
         when(productClient.getById(productId)).thenReturn(new ProductSnapshotResponse(
                 productId, "KB-001", "Keyboard", new BigDecimal("10.5"), "BRL", true));
 
-        OrderResponse response = service.create(new CreateOrderRequest(
-                "11111111-1111-1111-1111-111111111111",
-                List.of(new OrderItemRequest(productId, 2L))));
+        OrderResponse response = service.create("11111111-1111-1111-1111-111111111111",
+                new CreateOrderRequest(List.of(new OrderItemRequest(productId, 2L))));
 
         assertThat(response.status()).isEqualTo("CREATED");
         assertThat(response.totalAmount()).hasToString("21.0000");
@@ -98,18 +97,16 @@ class OrderApplicationServiceTest {
         when(productClient.getById(productId)).thenReturn(new ProductSnapshotResponse(
                 productId, "KB-001", "Keyboard", BigDecimal.ONE, "BRL", false));
 
-        assertThatThrownBy(() -> service.create(new CreateOrderRequest(
-                "11111111-1111-1111-1111-111111111111",
-                List.of(new OrderItemRequest(productId, 1L)))))
+        assertThatThrownBy(() -> service.create("11111111-1111-1111-1111-111111111111",
+                new CreateOrderRequest(List.of(new OrderItemRequest(productId, 1L)))))
                 .isInstanceOf(UnknownProductException.class);
     }
 
     @Test
     void createRejectsDuplicateProductIds() {
         String productId = UUID.randomUUID().toString();
-        assertThatThrownBy(() -> service.create(new CreateOrderRequest(
-                "11111111-1111-1111-1111-111111111111",
-                List.of(new OrderItemRequest(productId, 1L), new OrderItemRequest(productId, 2L)))))
+        assertThatThrownBy(() -> service.create("11111111-1111-1111-1111-111111111111",
+                new CreateOrderRequest(List.of(new OrderItemRequest(productId, 1L), new OrderItemRequest(productId, 2L)))))
                 .isInstanceOf(DuplicateProductInOrderException.class);
     }
 
@@ -118,7 +115,7 @@ class OrderApplicationServiceTest {
         OrderEntity order = persistedOrder(OrderStatus.CREATED);
         when(repository.findByIdOptional(order.getId())).thenReturn(Optional.of(order));
 
-        OrderResponse response = service.confirm(order.getId());
+        OrderResponse response = service.confirm(order.getId(), order.getCustomerId());
 
         assertThat(response.status()).isEqualTo("CONFIRMED");
         ArgumentCaptor<OrderConfirmedPayload> payload = ArgumentCaptor.forClass(OrderConfirmedPayload.class);
@@ -134,7 +131,7 @@ class OrderApplicationServiceTest {
         OrderEntity order = persistedOrder(OrderStatus.CREATED);
         when(repository.findByIdOptional(order.getId())).thenReturn(Optional.of(order));
 
-        service.cancel(order.getId(), new CancelOrderRequest("CHANGED_MIND", null));
+        service.cancel(order.getId(), order.getCustomerId(), new CancelOrderRequest("CHANGED_MIND", null));
 
         ArgumentCaptor<OrderCancelledPayload> payload = ArgumentCaptor.forClass(OrderCancelledPayload.class);
         verify(outboxWriter).writeEvent(
@@ -144,11 +141,21 @@ class OrderApplicationServiceTest {
     }
 
     @Test
+    void confirmRejectsADifferentCustomer() {
+        OrderEntity order = persistedOrder(OrderStatus.CREATED);
+        when(repository.findByIdOptional(order.getId())).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> service.confirm(order.getId(), "someone-else"))
+                .isInstanceOf(com.commercehub.order.exception.OrderNotOwnedException.class);
+        verify(outboxWriter, never()).writeEvent(any(), any(), any(), any(), any());
+    }
+
+    @Test
     void cancelInventoryReservedWritesCompensationCommand() {
         OrderEntity order = persistedOrder(OrderStatus.INVENTORY_RESERVED);
         when(repository.findByIdOptional(order.getId())).thenReturn(Optional.of(order));
 
-        service.cancel(order.getId(), new CancelOrderRequest("CHANGED_MIND", null));
+        service.cancel(order.getId(), order.getCustomerId(), new CancelOrderRequest("CHANGED_MIND", null));
 
         verify(outboxWriter).writeEvent(eq("OrderCancelled"), eq(KafkaTopics.ORDER_EVENTS), eq(order.getId()), isNull(), any());
         ArgumentCaptor<ReleaseInventoryPayload> command = ArgumentCaptor.forClass(ReleaseInventoryPayload.class);

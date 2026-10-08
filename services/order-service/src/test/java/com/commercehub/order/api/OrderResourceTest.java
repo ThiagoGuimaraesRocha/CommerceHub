@@ -15,6 +15,7 @@ import com.commercehub.order.infrastructure.client.ProductClient;
 import com.commercehub.order.infrastructure.client.ProductSnapshotResponse;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
 import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
+@TestSecurity(user = "11111111-1111-1111-1111-111111111111", roles = "CUSTOMER")
 class OrderResourceTest {
 
     private static final String ORDERS = "/api/v1/orders";
@@ -64,6 +66,7 @@ class OrderResourceTest {
                 .statusCode(201)
                 .header("Location", containsString(ORDERS + "/"))
                 .body("status", equalTo("CREATED"))
+                .body("customerId", equalTo(CUSTOMER))
                 .body("currencyCode", equalTo("BRL"))
                 .body("totalAmount", equalTo(21.0f))
                 .body("items.size()", equalTo(1))
@@ -110,13 +113,13 @@ class OrderResourceTest {
     @Test
     void validationErrorsReturnProblemDetails() {
         given().contentType(ContentType.JSON)
-                .body(Map.of("customerId", "", "items", List.of()))
+                .body(Map.of("items", List.of()))
                 .when().post(ORDERS)
                 .then()
                 .statusCode(400)
                 .contentType("application/problem+json")
                 .body("type", equalTo("urn:commercehub:problem:validation-error"))
-                .body("violations.field", hasItem("customerId"));
+                .body("violations.field", hasItem("items"));
     }
 
     @Test
@@ -131,8 +134,7 @@ class OrderResourceTest {
     void listByCustomerReturnsCreatedOrders() {
         String id = createOrder(UUID.randomUUID().toString(), 1).path("id");
 
-        given().queryParam("customerId", CUSTOMER)
-                .when().get(ORDERS)
+        given().when().get(ORDERS)
                 .then()
                 .statusCode(200)
                 .body("id", hasItem(id));
@@ -229,8 +231,6 @@ class OrderResourceTest {
     }
 
     private static Map<String, Object> orderBody(String productId, long quantity) {
-        return Map.of(
-                "customerId", CUSTOMER,
-                "items", List.of(Map.of("productId", productId, "quantity", quantity)));
+        return Map.of("items", List.of(Map.of("productId", productId, "quantity", quantity)));
     }
 }

@@ -6,6 +6,8 @@ import com.commercehub.product.api.dto.ProductResponse;
 import com.commercehub.product.api.dto.UpdateProductRequest;
 import com.commercehub.product.application.ProductService;
 import com.commercehub.product.exception.ProblemDetail;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -28,6 +30,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.reactive.RestResponse;
 
@@ -44,6 +47,8 @@ public class ProductResource {
     }
 
     @POST
+    @RolesAllowed("ADMIN")
+    @SecurityRequirement(name = "bearer")
     @Operation(summary = "Create a product")
     @APIResponse(responseCode = "201", description = "Product created",
             content = @Content(schema = @Schema(implementation = ProductResponse.class)))
@@ -60,7 +65,8 @@ public class ProductResource {
     }
 
     @GET
-    @Operation(summary = "List products", description = "Paginated, ordered by name. Filters are optional.")
+    @PermitAll
+    @Operation(summary = "List products", description = "Paginated, ordered by name. Filters are optional. Public.")
     @APIResponse(responseCode = "200", description = "Page of products")
     public PageResponse<ProductResponse> list(
             @Parameter(description = "Filter by category code", example = "PERIPHERALS") @QueryParam("category") String category,
@@ -72,6 +78,7 @@ public class ProductResource {
 
     @GET
     @Path("/{id}")
+    @PermitAll
     @Operation(summary = "Get a product by id")
     @APIResponse(responseCode = "200", description = "Product found",
             content = @Content(schema = @Schema(implementation = ProductResponse.class)))
@@ -83,6 +90,8 @@ public class ProductResource {
 
     @PUT
     @Path("/{id}")
+    @RolesAllowed("ADMIN")
+    @SecurityRequirement(name = "bearer")
     @Operation(summary = "Replace a product", description = "Uses optimistic locking: send the current `version`.")
     @APIResponse(responseCode = "200", description = "Product updated",
             content = @Content(schema = @Schema(implementation = ProductResponse.class)))
@@ -98,6 +107,8 @@ public class ProductResource {
 
     @DELETE
     @Path("/{id}")
+    @RolesAllowed("ADMIN")
+    @SecurityRequirement(name = "bearer")
     @Operation(summary = "Deactivate a product",
             description = "Soft delete: the product stays readable with `active=false` so existing orders keep a valid reference.")
     @APIResponse(responseCode = "204", description = "Product deactivated")

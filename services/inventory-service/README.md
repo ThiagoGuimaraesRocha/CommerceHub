@@ -9,13 +9,13 @@ available/reserved quantities; Order Service never touches this schema.
 
 ## Endpoints
 
-| Method | Path | Description | Success | Errors |
-| --- | --- | --- | --- | --- |
-| `PUT` | `/api/v1/inventory/{productId}` | Create or set absolute available quantity (idempotent) | 200 | 400 |
-| `GET` | `/api/v1/inventory/{productId}` | Available and reserved quantities | 200 | 404 |
+| Method | Path | Auth | Description | Success | Errors |
+| --- | --- | --- | --- | --- | --- |
+| `PUT` | `/api/v1/inventory/{productId}` | `ADMIN` | Create or set absolute available quantity (idempotent) | 200 | 400, 401, 403 |
+| `GET` | `/api/v1/inventory/{productId}` | `ADMIN` | Available and reserved quantities | 200 | 401, 403, 404 |
 
-The administrative API is open until Sprint 5 (then `ADMIN` role). Demo data is loaded through it by
-`scripts/seed.sh`, never written straight into Oracle.
+The administrative API requires the `ADMIN` role. Demo data is loaded through it by `scripts/seed.sh`
+(after login), never written straight into Oracle.
 
 ### Kafka
 
@@ -35,13 +35,15 @@ Set stock:
 ```bash
 curl -X PUT http://localhost:8084/api/v1/inventory/<product-id> \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"availableQuantity":50}'
 ```
 
 Get stock:
 
 ```bash
-curl http://localhost:8084/api/v1/inventory/<product-id>
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8084/api/v1/inventory/<product-id>
 ```
 
 Unknown product:
@@ -81,6 +83,7 @@ Unknown product:
 | `unit/StockReservationServiceTest` | All-or-nothing reserve/release |
 | `unit/InventorySagaServiceTest` | Outbox replies and idempotency |
 | `api/InventoryAdminResourceTest` | HTTP contract on Oracle |
+| `api/SecurityIT` | 401/403 on the admin API |
 | `api/OrderEventConsumerTest` | In-memory `OrderConfirmed` |
 | `api/InventoryCommandConsumerTest` | In-memory `ReleaseInventory` |
 | `api/IdempotencyTest` | Duplicate event, one reservation |

@@ -1,6 +1,10 @@
 package com.commercehub.inventory.exception;
 
+import io.quarkus.security.AuthenticationFailedException;
+import io.quarkus.security.ForbiddenException;
+import io.quarkus.security.UnauthorizedException;
 import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
@@ -23,8 +27,39 @@ public class ApiExceptionHandler {
     }
 
     @ServerExceptionMapper
+    public RestResponse<ProblemDetail> unauthorized(UnauthorizedException exception, UriInfo uriInfo) {
+        return problem(ProblemDetail.of("unauthorized", "Unauthorized", 401, "Authentication is required", instance(uriInfo)));
+    }
+
+    @ServerExceptionMapper
+    public RestResponse<ProblemDetail> authenticationFailed(AuthenticationFailedException exception, UriInfo uriInfo) {
+        return problem(ProblemDetail.of("unauthorized", "Unauthorized", 401, "Authentication is required", instance(uriInfo)));
+    }
+
+    @ServerExceptionMapper
+    public RestResponse<ProblemDetail> notAuthorized(NotAuthorizedException exception, UriInfo uriInfo) {
+        return problem(ProblemDetail.of("unauthorized", "Unauthorized", 401, "Authentication is required", instance(uriInfo)));
+    }
+
+    @ServerExceptionMapper
+    public RestResponse<ProblemDetail> forbidden(ForbiddenException exception, UriInfo uriInfo) {
+        return problem(ProblemDetail.of("forbidden", "Forbidden", 403, "Insufficient permissions", instance(uriInfo)));
+    }
+
+    @ServerExceptionMapper
+    public RestResponse<ProblemDetail> jaxrsForbidden(jakarta.ws.rs.ForbiddenException exception, UriInfo uriInfo) {
+        return problem(ProblemDetail.of("forbidden", "Forbidden", 403, "Insufficient permissions", instance(uriInfo)));
+    }
+
+    @ServerExceptionMapper
     public RestResponse<ProblemDetail> webApplication(WebApplicationException exception, UriInfo uriInfo) {
         Response.StatusType status = exception.getResponse().getStatusInfo();
+        if (status.getStatusCode() == 401) {
+            return problem(ProblemDetail.of("unauthorized", "Unauthorized", 401, "Authentication is required", instance(uriInfo)));
+        }
+        if (status.getStatusCode() == 403) {
+            return problem(ProblemDetail.of("forbidden", "Forbidden", 403, "Insufficient permissions", instance(uriInfo)));
+        }
         String detail = status.getStatusCode() == 400 ? "The request body is malformed or has invalid types" : exception.getMessage();
         return problem(ProblemDetail.of("http-" + status.getStatusCode(), status.getReasonPhrase(),
                 status.getStatusCode(), detail, instance(uriInfo)));
