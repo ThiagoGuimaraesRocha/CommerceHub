@@ -2,7 +2,7 @@
   "info": {
     "name": "CommerceHub",
     "_postman_id": "0b7f6a52-3f5e-4d8e-9a57-6c1c3c2f1a01",
-    "description": "Requests for the CommerceHub microservices. Import together with `CommerceHub.local.postman_environment.json`.\n\nRun the whole collection (Collection Runner or `newman`) in order: requests share product and order variables through collection variables.\n\nErrors follow RFC 9457 (`application/problem+json`). Monetary values use scale 4.",
+    "description": "Requests for the CommerceHub microservices. Import together with `CommerceHub.local.postman_environment.json`.\n\nRun the whole collection in order: Auth first (admin + customer tokens), then products, orders and inventory.\n\nErrors follow RFC 9457 (`application/problem+json`). Monetary values use scale 4. JWT is a demonstration issuer (ADR 0010), not a corporate IdP.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -45,6 +45,18 @@
     {
       "key": "inventoryProductSku",
       "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "customerToken",
+      "value": ""
+    },
+    {
+      "key": "customerEmail",
+      "value": "customer@commercehub.local"
     }
   ],
   "item": [
@@ -55,7 +67,8 @@
           "name": "User Service readiness",
           "request": {
             "method": "GET",
-            "url": "{{userServiceUrl}}/q/health/ready"
+            "url": "{{userServiceUrl}}/q/health/ready",
+            "header": []
           },
           "event": [
             {
@@ -73,7 +86,8 @@
           "name": "Product Service readiness",
           "request": {
             "method": "GET",
-            "url": "{{productServiceUrl}}/q/health/ready"
+            "url": "{{productServiceUrl}}/q/health/ready",
+            "header": []
           },
           "event": [
             {
@@ -91,7 +105,8 @@
           "name": "Order Service readiness",
           "request": {
             "method": "GET",
-            "url": "{{orderServiceUrl}}/q/health/ready"
+            "url": "{{orderServiceUrl}}/q/health/ready",
+            "header": []
           },
           "event": [
             {
@@ -109,7 +124,8 @@
           "name": "Inventory Service readiness",
           "request": {
             "method": "GET",
-            "url": "{{inventoryServiceUrl}}/q/health/ready"
+            "url": "{{inventoryServiceUrl}}/q/health/ready",
+            "header": []
           },
           "event": [
             {
@@ -122,6 +138,99 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login as admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('bearer token', () => { pm.expect(body.tokenType).to.eql('Bearer'); pm.expect(body.accessToken).to.be.a('string'); });",
+                  "pm.collectionVariables.set('adminToken', body.accessToken);",
+                  "pm.collectionVariables.set('customerId', body.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{userServiceUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{demoAdminEmail}}\",\n  \"password\": \"{{demoAdminPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login as customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('customerToken', body.accessToken);",
+                  "pm.collectionVariables.set('customerId', body.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{userServiceUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{demoCustomerEmail}}\",\n  \"password\": \"{{demoCustomerPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('id present', () => pm.expect(pm.response.json().id).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": "{{userServiceUrl}}/api/v1/users/me"
+          }
         }
       ]
     },
@@ -163,6 +272,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{productServiceUrl}}/api/v1/products",
@@ -188,7 +301,8 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}"
+            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
+            "header": []
           }
         },
         {
@@ -237,7 +351,8 @@
                   "value": "20"
                 }
               ]
-            }
+            },
+            "header": []
           }
         },
         {
@@ -262,6 +377,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
@@ -290,6 +409,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
@@ -319,6 +442,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{productServiceUrl}}/api/v1/products",
@@ -348,6 +475,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{productServiceUrl}}/api/v1/products",
@@ -372,7 +503,8 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{productServiceUrl}}/api/v1/products/00000000-0000-0000-0000-000000000000"
+            "url": "{{productServiceUrl}}/api/v1/products/00000000-0000-0000-0000-000000000000",
+            "header": []
           }
         },
         {
@@ -390,7 +522,13 @@
           ],
           "request": {
             "method": "DELETE",
-            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}"
+            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ]
           }
         },
         {
@@ -408,7 +546,8 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}"
+            "url": "{{productServiceUrl}}/api/v1/products/{{productId}}",
+            "header": []
           }
         }
       ]
@@ -448,6 +587,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{productServiceUrl}}/api/v1/products",
@@ -483,12 +626,16 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": "{{orderServiceUrl}}/api/v1/orders",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    { \"productId\": \"{{orderProductId}}\", \"quantity\": 2 }\n  ]\n}"
+              "raw": "{\"items\": [\n    { \"productId\": \"{{orderProductId}}\", \"quantity\": 2 }\n  ]\n}"
             }
           }
         },
@@ -508,11 +655,17 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}"
+            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ]
           }
         },
         {
-          "name": "List orders by customer",
+          "name": "List my orders",
           "event": [
             {
               "listen": "test",
@@ -531,7 +684,7 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{orderServiceUrl}}/api/v1/orders?customerId={{customerId}}",
+              "raw": "{{orderServiceUrl}}/api/v1/orders",
               "host": [
                 "{{orderServiceUrl}}"
               ],
@@ -539,14 +692,14 @@
                 "api",
                 "v1",
                 "orders"
-              ],
-              "query": [
-                {
-                  "key": "customerId",
-                  "value": "{{customerId}}"
-                }
               ]
-            }
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ]
           }
         },
         {
@@ -564,7 +717,13 @@
           ],
           "request": {
             "method": "POST",
-            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}/confirm"
+            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}/confirm",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ]
           }
         },
         {
@@ -582,7 +741,13 @@
           ],
           "request": {
             "method": "POST",
-            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}/confirm"
+            "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}/confirm",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ]
           }
         },
         {
@@ -604,6 +769,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": "{{orderServiceUrl}}/api/v1/orders/{{orderId}}/cancel",
@@ -633,12 +802,16 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": "{{orderServiceUrl}}/api/v1/orders",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    { \"productId\": \"{{orderProductId}}\", \"quantity\": 1 }\n  ]\n}"
+              "raw": "{\"items\": [\n    { \"productId\": \"{{orderProductId}}\", \"quantity\": 1 }\n  ]\n}"
             }
           }
         },
@@ -667,6 +840,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": "{{orderServiceUrl}}/api/v1/orders/{{cancelOrderId}}/cancel",
@@ -695,7 +872,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{orderServiceUrl}}/api/v1/orders/cancellation-reasons"
+            "url": "{{orderServiceUrl}}/api/v1/orders/cancellation-reasons",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ]
           }
         },
         {
@@ -717,12 +900,16 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
               }
             ],
             "url": "{{orderServiceUrl}}/api/v1/orders",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"items\": [\n    { \"productId\": \"00000000-0000-0000-0000-000000000000\", \"quantity\": 1 }\n  ]\n}"
+              "raw": "{\"items\": [\n    { \"productId\": \"00000000-0000-0000-0000-000000000000\", \"quantity\": 1 }\n  ]\n}"
             }
           }
         }
@@ -730,7 +917,7 @@
     },
     {
       "name": "Inventory Service",
-      "description": "Administrative stock API. OpenAPI: {{inventoryServiceUrl}}/q/openapi — Swagger UI: {{inventoryServiceUrl}}/q/swagger-ui.\\n\\nCreates its own product so the collection does not depend on leftover catalog rows. Seed data in production-like runs uses scripts/seed.sh (SKU → productId → PUT).",
+      "description": "Administrative stock API. OpenAPI: {{inventoryServiceUrl}}/q/openapi \u2014 Swagger UI: {{inventoryServiceUrl}}/q/swagger-ui.\\n\\nCreates its own product so the collection does not depend on leftover catalog rows. Seed data in production-like runs uses scripts/seed.sh (SKU \u2192 productId \u2192 PUT).",
       "item": [
         {
           "name": "Create product for inventory",
@@ -762,6 +949,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{productServiceUrl}}/api/v1/products",
@@ -796,6 +987,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}",
@@ -823,7 +1018,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}"
+            "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ]
           }
         },
         {
@@ -845,6 +1046,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}",
@@ -869,7 +1074,13 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{inventoryServiceUrl}}/api/v1/inventory/00000000-0000-0000-0000-000000000000"
+            "url": "{{inventoryServiceUrl}}/api/v1/inventory/00000000-0000-0000-0000-000000000000",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ]
           }
         },
         {
@@ -891,6 +1102,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
               }
             ],
             "url": "{{inventoryServiceUrl}}/api/v1/inventory/{{inventoryProductId}}",

@@ -20,6 +20,8 @@ OpenShift, observability and CI/CD/GitOps.
 - **Order saga** over Kafka with a documented envelope, events vs commands, transactional outbox and
   idempotent consumers ([event contracts](docs/events/README.md)).
 - **RFC 9457 Problem Details**, optimistic locking, versioned REST APIs, OpenAPI + Swagger UI.
+- **Demo JWT** issued by the User Service: catalog writes and inventory admin require `ADMIN`; orders
+  are scoped to the authenticated customer. This is not a corporate identity provider.
 - **Tests on real Oracle**: unit (JUnit 5 + Mockito), API (REST Assured) and integration tests with
   Oracle Database Free started by Quarkus Dev Services.
 - **Reproducible local stack** with Docker Compose, pinned image tags and digests, no secrets in Git.
@@ -33,13 +35,13 @@ OpenShift, observability and CI/CD/GitOps.
 | S2 | Product Service: CRUD, Flyway, Problem Details, OpenAPI, tests, Postman, CI | Done |
 | S3 | Order Service: orders, items, REST integration with Product Service | Done |
 | S4 | Kafka + Inventory Service: saga, outbox, idempotency, stock admin endpoint | Done |
-| S5 | User Service + JWT | Planned |
+| S5 | User Service + JWT | Done |
 | S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Planned |
 | S7 | OpenShift deployment (local MicroShift/OKD) | Planned |
 | S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
 
 Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr). Project plan (Portuguese):
-[`docs/plano/CommerceHub_Plano_Base_v0.6.md`](docs/plano/CommerceHub_Plano_Base_v0.6.md).
+[`docs/plano/CommerceHub_Plano_Base_v0.7.md`](docs/plano/CommerceHub_Plano_Base_v0.7.md).
 
 ## Architecture
 
@@ -86,7 +88,7 @@ or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already e
 
 | Service | Responsibility | Schema | Dev port | Container port |
 | --- | --- | --- | --- | --- |
-| `user-service` | Customers and demo JWT authentication | `USER_SCHEMA` | 8081 | 8080 |
+| [`user-service`](services/user-service/README.md) | Customers and demo JWT authentication | `USER_SCHEMA` | 8081 | 8080 |
 | [`product-service`](services/product-service/README.md) | Catalog, prices and categories | `PRODUCT_SCHEMA` | 8082 | 8080 |
 | [`order-service`](services/order-service/README.md) | Orders, items and order lifecycle (saga owner) | `ORDER_SCHEMA` | 8083 | 8080 |
 | [`inventory-service`](services/inventory-service/README.md) | Stock, reservations, idempotent event consumption | `INVENTORY_SCHEMA` | 8084 | 8080 |
@@ -115,7 +117,7 @@ cp .env.example .env                           # replace every "change-me" value
 docker compose --profile apps up -d --build    # Oracle + Kafka + the four services
 docker compose --profile apps ps               # wait until everything is "healthy"
 
-./scripts/seed.sh                              # load demo products and stock through the APIs
+./scripts/seed.sh                              # login as bootstrap admin, then load users/products/stock through the APIs
 curl 'http://localhost:8082/api/v1/products?category=PERIPHERALS'
 ```
 
@@ -149,6 +151,7 @@ docker compose --profile apps down -v    # also delete the Oracle volume
 
 | Service | Base path | OpenAPI | Swagger UI |
 | --- | --- | --- | --- |
+| User | `http://localhost:8081/api/v1` | `/q/openapi` | `/q/swagger-ui` |
 | Product | `http://localhost:8082/api/v1/products` | `/q/openapi` | `/q/swagger-ui` |
 | Order | `http://localhost:8083/api/v1/orders` | `/q/openapi` | `/q/swagger-ui` |
 | Inventory | `http://localhost:8084/api/v1/inventory` | `/q/openapi` | `/q/swagger-ui` |
@@ -156,9 +159,19 @@ docker compose --profile apps down -v    # also delete the Oracle volume
 Conventions ([ADR 0008](docs/adr/0008-http-api-conventions.md)): versioned paths, `application/problem+json`
 errors, money with scale 4, optimistic locking through `version`, soft delete for catalog data.
 
+Catalog reads are public. Writes, inventory admin and orders need a Bearer JWT from
+`POST http://localhost:8081/api/v1/auth/login` (demo issuer only — [ADR 0010](docs/adr/0010-demo-jwt.md)).
+Login credentials come from `.env`; they are not listed here.
+
 ```bash
+TOKEN=$(curl -sS -X POST http://localhost:8081/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$DEMO_ADMIN_EMAIL\",\"password\":\"$DEMO_ADMIN_PASSWORD\"}" \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["accessToken"])')
+
 curl -i -X POST http://localhost:8082/api/v1/products \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"sku":"KB-MECH-002","name":"Mechanical Keyboard","categoryCode":"PERIPHERALS","price":349.9}'
 ```
 
@@ -181,8 +194,8 @@ curl -i -X POST http://localhost:8082/api/v1/products \
 
 Import both files from [`postman/`](postman):
 
-- `CommerceHub.postman_collection.json` — health checks, product lifecycle, orders and inventory admin,
-  with test scripts that chain `productId` / `orderId` between requests.
+- `CommerceHub.postman_collection.json` — login, health checks, product lifecycle, orders and inventory
+  admin, with test scripts that chain tokens / `productId` / `orderId` between requests.
 - `CommerceHub.local.postman_environment.json` — local URLs for the four services.
 
 Run it from the Collection Runner, or from the command line:
@@ -215,6 +228,8 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | `PRODUCT_SERVICE_URL` | `http://localhost:8082` | order-service REST client |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:29092` (host) / `kafka:9092` (Compose) | order-service, inventory-service |
 | `KAFKA_HOST_PORT` | `29092` | host port mapped to Kafka |
+| `JWT_ISSUER` | `https://commercehub.example/issuer` | JWT issuer, must match on every service |
+| `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD` | placeholders in `.env.example` | bootstrap ADMIN (User Service) |
 | `GHCR_OWNER` | `local` | image prefix `ghcr.io/<owner>/commercehub-<service>` |
 
 `.env` is ignored by Git. Oracle reads the passwords only on its first start; to change them, run
@@ -252,6 +267,7 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | [0007](docs/adr/0007-migrations-and-test-strategy.md) | Flyway migrations and test strategy on real Oracle |
 | [0008](docs/adr/0008-http-api-conventions.md) | HTTP API conventions |
 | [0009](docs/adr/0009-local-openshift.md) | Local OpenShift with MicroShift (OKD) |
+| [0010](docs/adr/0010-demo-jwt.md) | Demonstration JWT (not a corporate IdP) |
 
 ## Conventions
 
