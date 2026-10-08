@@ -7,7 +7,7 @@ import com.commercehub.inventory.domain.entity.InventoryItemEntity;
 import com.commercehub.inventory.infrastructure.messaging.EventEnvelope;
 import com.commercehub.inventory.infrastructure.messaging.KafkaTopics;
 import com.commercehub.inventory.infrastructure.messaging.MessageSerde;
-import com.commercehub.inventory.infrastructure.messaging.outbox.OutboxRelay;
+import com.commercehub.inventory.infrastructure.messaging.outbox.OutboxRepository;
 import com.commercehub.inventory.infrastructure.messaging.payload.OrderConfirmedPayload;
 import com.commercehub.inventory.infrastructure.messaging.payload.ReleaseInventoryPayload;
 import com.commercehub.inventory.infrastructure.persistence.InventoryRepository;
@@ -15,6 +15,7 @@ import com.commercehub.inventory.support.AwaitAssertions;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -40,7 +41,10 @@ class KafkaIntegrationTest {
     InventoryRepository inventoryRepository;
 
     @Inject
-    OutboxRelay outboxRelay;
+    OutboxRepository outboxRepository;
+
+    @Inject
+    EntityManager entityManager;
 
     @Inject
     MessageSerde serde;
@@ -61,6 +65,9 @@ class KafkaIntegrationTest {
         }
 
         AwaitAssertions.untilAsserted(45, () -> {
+            entityManager.clear();
+            assertThat(outboxRepository.count("aggregateId = ?1 and eventType = ?2", orderId, "InventoryReserved"))
+                    .isEqualTo(1);
             InventoryItemEntity item = inventoryRepository.findByProductId(productId).orElseThrow();
             assertThat(item.getReservedQty()).isEqualTo(3);
             assertThat(item.getAvailableQty()).isEqualTo(7);
@@ -71,12 +78,13 @@ class KafkaIntegrationTest {
         }
 
         AwaitAssertions.untilAsserted(45, () -> {
+            entityManager.clear();
+            assertThat(outboxRepository.count("aggregateId = ?1 and eventType = ?2", orderId, "InventoryReleased"))
+                    .isEqualTo(1);
             InventoryItemEntity item = inventoryRepository.findByProductId(productId).orElseThrow();
             assertThat(item.getReservedQty()).isZero();
             assertThat(item.getAvailableQty()).isEqualTo(10);
         });
-
-        outboxRelay.drain();
     }
 
     private KafkaProducer<String, String> producer() {
