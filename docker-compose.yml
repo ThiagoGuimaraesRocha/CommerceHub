@@ -55,9 +55,9 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092,OPENSHIFT://0.0.0.0:39092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092,OPENSHIFT://${KAFKA_OPENSHIFT_ADVERTISED_HOST:-127.0.0.1}:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,OPENSHIFT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -68,6 +68,7 @@ services:
       CLUSTER_ID: 5L6g3nShT-eMCtK--X86sw
     ports:
       - "${KAFKA_HOST_PORT:-29092}:29092"
+      - "${KAFKA_OPENSHIFT_HOST_PORT:-39092}:39092"
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
       interval: 10s
@@ -125,8 +126,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: user-service
-        VERSION: 0.6.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.6.0
+        VERSION: 0.7.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.7.0
     environment:
       DB_URL: *db-url
       USER_DB_PASSWORD: ${USER_DB_PASSWORD}
@@ -147,8 +148,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: product-service
-        VERSION: 0.6.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.6.0
+        VERSION: 0.7.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.7.0
     environment:
       DB_URL: *db-url
       PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
@@ -165,8 +166,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: order-service
-        VERSION: 0.6.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.6.0
+        VERSION: 0.7.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.7.0
     environment:
       DB_URL: *db-url
       ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
@@ -192,8 +193,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: inventory-service
-        VERSION: 0.6.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.6.0
+        VERSION: 0.7.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.7.0
     environment:
       DB_URL: *db-url
       INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}

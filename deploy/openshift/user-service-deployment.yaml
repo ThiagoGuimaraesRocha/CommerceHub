@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: commercehub
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/part-of: commercehub
+    app.kubernetes.io/version: "0.7.0"
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: user-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: user-service
+        app.kubernetes.io/part-of: commercehub
+        app.kubernetes.io/version: "0.7.0"
+    spec:
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: user-service
+          image: ghcr.io/local/commercehub-user-service:0.7.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: commercehub-config
+          env:
+            - name: USER_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: commercehub-secrets
+                  key: USER_DB_PASSWORD
+            - name: DEMO_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: commercehub-secrets
+                  key: DEMO_ADMIN_EMAIL
+            - name: DEMO_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: commercehub-secrets
+                  key: DEMO_ADMIN_PASSWORD
+            - name: DEMO_ADMIN_FULL_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: commercehub-secrets
+                  key: DEMO_ADMIN_FULL_NAME
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: http
+            initialDelaySeconds: 25
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

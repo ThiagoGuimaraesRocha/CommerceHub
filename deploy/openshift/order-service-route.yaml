@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: order-service
+  namespace: commercehub
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/part-of: commercehub
+    app.kubernetes.io/version: "0.7.0"
+spec:
+  to:
+    kind: Service
+    name: order-service
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None

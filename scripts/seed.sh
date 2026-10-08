@@ -2,7 +2,8 @@
 # Loads demo data through the public REST APIs (never directly into the database).
 # Safe to run more than once: products that already exist (HTTP 409) are skipped;
 # inventory PUT is idempotent (absolute available quantity); users skip on 409.
-# Usage: ./scripts/seed.sh [product-service-url] [inventory-service-url]
+# Usage: ./scripts/seed.sh [product-service-url] [inventory-service-url] [user-service-url]
+# OpenShift: pass Route URLs, or set PRODUCT_SERVICE_URL / INVENTORY_SERVICE_URL / USER_SERVICE_URL.
 #
 # Requires DEMO_ADMIN_EMAIL and DEMO_ADMIN_PASSWORD (see .env.example). The User
 # Service must already have created the bootstrap admin. This script never prints
@@ -21,7 +22,7 @@ fi
 
 PRODUCT_URL="${1:-${PRODUCT_SERVICE_URL:-http://localhost:8082}}"
 INVENTORY_URL="${2:-${INVENTORY_SERVICE_URL:-http://localhost:8084}}"
-USER_URL="${USER_SERVICE_URL:-http://localhost:8081}"
+USER_URL="${3:-${USER_SERVICE_URL:-http://localhost:8081}}"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "python3 is required to resolve productId from SKU and parse login." >&2

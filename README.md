@@ -27,6 +27,8 @@ OpenShift, observability and CI/CD/GitOps.
 - **Tests on real Oracle**: unit (JUnit 5 + Mockito), API (REST Assured) and integration tests with
   Oracle Database Free started by Quarkus Dev Services.
 - **Reproducible local stack** with Docker Compose, pinned image tags and digests, no secrets in Git.
+- **Local OpenShift**: MicroShift/OKD via Podman; the four services deploy from `deploy/openshift`
+  (Routes, probes, Flyway Jobs). Oracle and Kafka stay in Compose.
 - **Architecture decisions recorded** as ADRs.
 
 ## Status
@@ -39,11 +41,11 @@ OpenShift, observability and CI/CD/GitOps.
 | S4 | Kafka + Inventory Service: saga, outbox, idempotency, stock admin endpoint | Done |
 | S5 | User Service + JWT | Done |
 | S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Done |
-| S7 | OpenShift deployment (local MicroShift/OKD) | Planned |
+| S7 | OpenShift deployment (local MicroShift/OKD) | Done |
 | S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
 
 Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr). Project plan (Portuguese):
-[`docs/plano/CommerceHub_Plano_Base_v0.8.md`](docs/plano/CommerceHub_Plano_Base_v0.8.md).
+[`docs/plano/CommerceHub_Plano_Base_v0.9.md`](docs/plano/CommerceHub_Plano_Base_v0.9.md).
 
 ## Architecture
 
@@ -108,8 +110,9 @@ or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already e
 | API docs | SmallRye OpenAPI + Swagger UI, Postman collection |
 | Tests | JUnit 5, Mockito, AssertJ, REST Assured, Quarkus Dev Services (Testcontainers) |
 | Observability | OpenTelemetry, Jaeger v2 `2.21.0`, Prometheus `v3.15.0`, Grafana OSS `12.2.0` |
-| Build / CI | Maven Wrapper 3.9.16, GitHub Actions |
+| Build / CI | Maven Wrapper 3.9.16, GitHub Actions (`validate-manifests.sh` + `./mvnw verify`) |
 | Containers | Multi-stage Dockerfile, `ubi9/openjdk-21-runtime` (OpenShift-ready), Docker Compose |
+| Platform | MicroShift/OKD (Podman bootc), OpenShift Routes, Kustomize manifests |
 
 ## Quick start
 
@@ -167,6 +170,17 @@ Jaeger UI: <http://localhost:16686> · Prometheus: <http://localhost:9090> · Gr
    orders created/confirmed, cancellations, inventory reservations, outbox gauges and HTTP traffic.
 5. To locate a failure: confirm an order whose SKU has no stock. Jaeger still shows the saga; the order is
    cancelled with `INSUFFICIENT_STOCK`; Grafana plots `commercehub_orders_cancelled_total{reason="INSUFFICIENT_STOCK"}`.
+
+### Local OpenShift
+
+Linux + rootful Podman. Oracle and Kafka stay in Compose; the four services run in MicroShift.
+
+```bash
+./scripts/up.sh
+```
+
+Guide: [`docs/deploy/openshift.md`](docs/deploy/openshift.md). Rollback: `./scripts/openshift-rollback.sh order-service`.
+Seed through Routes: `./scripts/seed.sh http://<product-route> http://<inventory-route> http://<user-route>`.
 
 ## API
 
@@ -249,6 +263,8 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | `PRODUCT_SERVICE_URL` | `http://localhost:8082` | order-service REST client |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:29092` (host) / `kafka:9092` (Compose) | order-service, inventory-service |
 | `KAFKA_HOST_PORT` | `29092` | host port mapped to Kafka |
+| `KAFKA_OPENSHIFT_HOST_PORT` | `39092` | Kafka listener advertised to OpenShift pods |
+| `INFRA_HOST` | autodetection in `up.sh` | host IPv4 used by pods to reach Oracle/Kafka/Jaeger |
 | `JWT_ISSUER` | `https://commercehub.example/issuer` | JWT issuer, must match on every service |
 | `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD` | placeholders in `.env.example` | bootstrap ADMIN (User Service) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` (host) / `http://jaeger:4317` (Compose) | OTLP gRPC traces |
@@ -270,11 +286,13 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 ├── infra/prometheus/             # Prometheus scrape config
 ├── infra/grafana/                # provisioned datasources and CommerceHub dashboard
 ├── data/seed/                    # demo data, loaded through the APIs
-├── scripts/                      # dev.sh (Quarkus dev mode), seed.sh (demo data)
+├── scripts/                      # up.sh (Compose + MicroShift), seed.sh, rollback
+├── deploy/openshift/             # Namespace, ConfigMap, Deployments, Jobs, Routes
 ├── postman/                      # Postman collection and environment
-├── .github/workflows/ci.yml      # ./mvnw verify on every push and pull request
+├── .github/workflows/ci.yml      # manifest check + ./mvnw verify
 └── docs/
     ├── adr/                      # architecture decision records
+    ├── deploy/                   # OpenShift deploy and rollback guide
     ├── events/                   # Kafka envelope, topics and message catalog
     └── sprints/                  # sprint notes and Definition of Done evidence
 ```

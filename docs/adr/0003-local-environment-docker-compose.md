@@ -25,4 +25,4 @@ development.
 ## Consequences
 
 - One documented bootstrap path for every machine.
-- The Compose file is not a production artifact; OpenShift manifests are created in Sprint 7.
+- The Compose file is not a production artifact; OpenShift manifests live in `deploy/openshift` (Sprint 7).

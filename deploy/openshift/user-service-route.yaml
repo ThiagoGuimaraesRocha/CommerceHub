@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: user-service
+  namespace: commercehub
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/part-of: commercehub
+    app.kubernetes.io/version: "0.7.0"
+spec:
+  to:
+    kind: Service
+    name: user-service
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None
