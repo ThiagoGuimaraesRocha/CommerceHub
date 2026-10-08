@@ -32,14 +32,14 @@ OpenShift, observability and CI/CD/GitOps.
 | S1 | Foundation: monorepo, Maven/Quarkus, Oracle, Docker Compose, ADRs | Done |
 | S2 | Product Service: CRUD, Flyway, Problem Details, OpenAPI, tests, Postman, CI | Done |
 | S3 | Order Service: orders, items, REST integration with Product Service | Done |
-| S4 | Kafka + Inventory Service: saga, outbox, idempotency, stock admin endpoint | Planned |
+| S4 | Kafka + Inventory Service: saga, outbox, idempotency, stock admin endpoint | Done |
 | S5 | User Service + JWT | Planned |
 | S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Planned |
 | S7 | OpenShift deployment (local MicroShift/OKD) | Planned |
 | S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
 
 Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr). Project plan (Portuguese):
-[`docs/plano/CommerceHub_Plano_Base_v0.5.md`](docs/plano/CommerceHub_Plano_Base_v0.5.md).
+[`docs/plano/CommerceHub_Plano_Base_v0.6.md`](docs/plano/CommerceHub_Plano_Base_v0.6.md).
 
 ## Architecture
 
@@ -89,7 +89,7 @@ or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already e
 | `user-service` | Customers and demo JWT authentication | `USER_SCHEMA` | 8081 | 8080 |
 | [`product-service`](services/product-service/README.md) | Catalog, prices and categories | `PRODUCT_SCHEMA` | 8082 | 8080 |
 | [`order-service`](services/order-service/README.md) | Orders, items and order lifecycle (saga owner) | `ORDER_SCHEMA` | 8083 | 8080 |
-| `inventory-service` | Stock, reservations, idempotent event consumption | `INVENTORY_SCHEMA` | 8084 | 8080 |
+| [`inventory-service`](services/inventory-service/README.md) | Stock, reservations, idempotent event consumption | `INVENTORY_SCHEMA` | 8084 | 8080 |
 
 ## Tech stack
 
@@ -97,7 +97,7 @@ or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already e
 | --- | --- |
 | Language / framework | Java 21, Quarkus 3.33.3.3 (LTS), Quarkus REST, Hibernate ORM with Panache, Hibernate Validator |
 | Data | Oracle Database Free 23 (`gvenzl/oracle-free:23.26.3-slim-faststart`, pinned by digest), Flyway |
-| Messaging | Apache Kafka (Sprint 4) |
+| Messaging | Apache Kafka 3.9.1 (KRaft), transactional outbox, idempotent consumers |
 | API docs | SmallRye OpenAPI + Swagger UI, Postman collection |
 | Tests | JUnit 5, Mockito, AssertJ, REST Assured, Quarkus Dev Services (Testcontainers) |
 | Build / CI | Maven Wrapper 3.9.16, GitHub Actions |
@@ -112,10 +112,10 @@ git clone https://github.com/ThiagoGuimaraesRocha/CommerceHub.git
 cd CommerceHub
 cp .env.example .env                           # replace every "change-me" value
 
-docker compose --profile apps up -d --build    # Oracle + the four services
+docker compose --profile apps up -d --build    # Oracle + Kafka + the four services
 docker compose --profile apps ps               # wait until everything is "healthy"
 
-./scripts/seed.sh                              # load demo products through the API
+./scripts/seed.sh                              # load demo products and stock through the APIs
 curl 'http://localhost:8082/api/v1/products?category=PERIPHERALS'
 ```
 
@@ -124,7 +124,7 @@ Swagger UI: <http://localhost:8082/q/swagger-ui>
 ### Development mode (live reload)
 
 ```bash
-docker compose up -d oracle
+docker compose up -d oracle kafka
 ./scripts/dev.sh product-service     # or user-service, order-service, inventory-service
 ```
 
@@ -135,7 +135,8 @@ docker compose up -d oracle
 ```
 
 Runs unit, API and integration tests. Services with persistence start a throwaway Oracle container through
-Quarkus Dev Services, so Docker must be running. CI runs the same command on every push and pull request.
+Quarkus Dev Services; Kafka broker tests start a throwaway broker the same way. Docker must be running.
+CI runs the same command on every push and pull request.
 
 ### Stop
 
@@ -149,6 +150,8 @@ docker compose --profile apps down -v    # also delete the Oracle volume
 | Service | Base path | OpenAPI | Swagger UI |
 | --- | --- | --- | --- |
 | Product | `http://localhost:8082/api/v1/products` | `/q/openapi` | `/q/swagger-ui` |
+| Order | `http://localhost:8083/api/v1/orders` | `/q/openapi` | `/q/swagger-ui` |
+| Inventory | `http://localhost:8084/api/v1/inventory` | `/q/openapi` | `/q/swagger-ui` |
 
 Conventions ([ADR 0008](docs/adr/0008-http-api-conventions.md)): versioned paths, `application/problem+json`
 errors, money with scale 4, optimistic locking through `version`, soft delete for catalog data.
@@ -178,8 +181,8 @@ curl -i -X POST http://localhost:8082/api/v1/products \
 
 Import both files from [`postman/`](postman):
 
-- `CommerceHub.postman_collection.json` — health checks and the full product lifecycle, with test scripts
-  that chain `productId` and `version` between requests.
+- `CommerceHub.postman_collection.json` — health checks, product lifecycle, orders and inventory admin,
+  with test scripts that chain `productId` / `orderId` between requests.
 - `CommerceHub.local.postman_environment.json` — local URLs for the four services.
 
 Run it from the Collection Runner, or from the command line:
@@ -210,6 +213,8 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | `ORACLE_HOST_PORT` | `1521` | host port mapped to Oracle |
 | `FLYWAY_MIGRATE_AT_START` | `true` | services with persistence |
 | `PRODUCT_SERVICE_URL` | `http://localhost:8082` | order-service REST client |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:29092` (host) / `kafka:9092` (Compose) | order-service, inventory-service |
+| `KAFKA_HOST_PORT` | `29092` | host port mapped to Kafka |
 | `GHCR_OWNER` | `local` | image prefix `ghcr.io/<owner>/commercehub-<service>` |
 
 `.env` is ignored by Git. Oracle reads the passwords only on its first start; to change them, run
@@ -222,7 +227,7 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 ├── pom.xml                       # parent POM (Quarkus BOM, plugin versions, Java 21 enforcement)
 ├── services/                     # user-, product-, order-, inventory-service
 ├── docker/service.Dockerfile     # single multi-stage Dockerfile for every service
-├── docker-compose.yml            # Oracle (default) + application containers (profile "apps")
+├── docker-compose.yml            # Oracle + Kafka (default) + application containers (profile "apps")
 ├── infra/oracle/init/            # creates one schema per service on the first Oracle start
 ├── data/seed/                    # demo data, loaded through the APIs
 ├── scripts/                      # dev.sh (Quarkus dev mode), seed.sh (demo data)
