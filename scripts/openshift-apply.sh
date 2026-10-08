@@ -12,7 +12,7 @@ need_cmd python3
 
 NAMESPACE="${NAMESPACE:-commercehub}"
 GHCR_OWNER="${GHCR_OWNER:-local}"
-IMAGE_TAG="${IMAGE_TAG:-0.7.0}"
+IMAGE_TAG="${IMAGE_TAG:-0.8.0}"
 INFRA_HOST="$(detect_infra_host)"
 JWT_ISSUER="${JWT_ISSUER:-https://commercehub.example/issuer}"
 RENDERED="$(mktemp -d)"
@@ -42,22 +42,13 @@ for path in src.iterdir():
     text = text.replace("__INFRA_HOST__", host)
     text = text.replace("https://commercehub.example/issuer", issuer)
     text = text.replace("ghcr.io/local/", f"ghcr.io/{owner}/")
-    text = text.replace(":0.7.0", f":{tag}")
+    text = text.replace(":0.8.0", f":{tag}")
     (dst / path.name).write_text(text)
 PY
 
 kube apply -f "${RENDERED}/namespace.yaml"
-kube create secret generic commercehub-secrets \
-  --namespace "${NAMESPACE}" \
-  --from-literal=USER_DB_PASSWORD="${USER_DB_PASSWORD}" \
-  --from-literal=PRODUCT_DB_PASSWORD="${PRODUCT_DB_PASSWORD}" \
-  --from-literal=ORDER_DB_PASSWORD="${ORDER_DB_PASSWORD}" \
-  --from-literal=INVENTORY_DB_PASSWORD="${INVENTORY_DB_PASSWORD}" \
-  --from-literal=DEMO_ADMIN_EMAIL="${DEMO_ADMIN_EMAIL}" \
-  --from-literal=DEMO_ADMIN_PASSWORD="${DEMO_ADMIN_PASSWORD}" \
-  --from-literal=DEMO_ADMIN_FULL_NAME="${DEMO_ADMIN_FULL_NAME}" \
-  --dry-run=client -o yaml | kube apply -f -
-
+apply_commercehub_secrets "${NAMESPACE}"
+apply_commercehub_runtime "${NAMESPACE}" "${INFRA_HOST}"
 kube apply -f "${RENDERED}/configmap.yaml"
 
 echo "Running Flyway migrate Jobs (FLYWAY_MIGRATE_AT_START=true, pods stay false)..."
@@ -89,4 +80,4 @@ kube get pods -n "${NAMESPACE}"
 echo
 echo "Rollback a service with: ./scripts/openshift-rollback.sh <service>"
 echo "Seed through a Route, for example:"
-echo "  ./scripts/seed.sh http://<product-route> http://<inventory-route>"
+echo "  ./scripts/seed.sh http://<product-route> http://<inventory-route> http://<user-route>"

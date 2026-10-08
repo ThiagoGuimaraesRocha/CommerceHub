@@ -20,10 +20,14 @@ RUN --mount=type=cache,id=commercehub-m2,target=/root/.m2,sharing=locked \
 FROM ${RUNTIME_IMAGE}
 ARG SERVICE
 ARG VERSION=0.1.0
+ARG VCS_REF=""
+ARG SOURCE="https://github.com/ThiagoGuimaraesRocha/CommerceHub"
 
 LABEL org.opencontainers.image.title="commercehub-${SERVICE}" \
       org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.description="CommerceHub ${SERVICE}"
+      org.opencontainers.image.description="CommerceHub ${SERVICE}" \
+      org.opencontainers.image.source="${SOURCE}" \
+      org.opencontainers.image.revision="${VCS_REF}"
 
 ENV LANGUAGE="en_US:en" \
     TZ="UTC" \

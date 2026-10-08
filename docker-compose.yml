@@ -126,8 +126,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: user-service
-        VERSION: 0.7.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.7.0
+        VERSION: 0.8.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.8.0
     environment:
       DB_URL: *db-url
       USER_DB_PASSWORD: ${USER_DB_PASSWORD}
@@ -148,8 +148,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: product-service
-        VERSION: 0.7.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.7.0
+        VERSION: 0.8.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.8.0
     environment:
       DB_URL: *db-url
       PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
@@ -166,8 +166,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: order-service
-        VERSION: 0.7.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.7.0
+        VERSION: 0.8.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.8.0
     environment:
       DB_URL: *db-url
       ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
@@ -193,8 +193,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: inventory-service
-        VERSION: 0.7.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.7.0
+        VERSION: 0.8.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.8.0
     environment:
       DB_URL: *db-url
       INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}

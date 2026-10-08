@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: product-service
     app.kubernetes.io/part-of: commercehub
-    app.kubernetes.io/version: "0.7.0"
+    app.kubernetes.io/version: "0.8.0"
 spec:
   replicas: 1
   strategy:
@@ -22,7 +22,7 @@ spec:
       labels:
         app.kubernetes.io/name: product-service
         app.kubernetes.io/part-of: commercehub
-        app.kubernetes.io/version: "0.7.0"
+        app.kubernetes.io/version: "0.8.0"
     spec:
       terminationGracePeriodSeconds: 20
       securityContext:
@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: product-service
-          image: ghcr.io/local/commercehub-product-service:0.7.0
+          image: ghcr.io/local/commercehub-product-service:0.8.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -39,6 +39,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: commercehub-config
+            - configMapRef:
+                name: commercehub-runtime
           env:
             - name: PRODUCT_DB_PASSWORD
               valueFrom:

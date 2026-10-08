@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One command local stack: Docker Compose (Oracle, Kafka, Jaeger, Prometheus, Grafana)
 # plus MicroShift and the four services from versioned manifests (Sprint 7 / ADR 0009).
+# GITOPS=1 installs Argo CD and syncs from Git instead of kubectl apply (Sprint 8 / ADR 0012).
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,7 +20,7 @@ INFRA_HOST="$(detect_infra_host)"
 export INFRA_HOST
 export KAFKA_OPENSHIFT_ADVERTISED_HOST="${KAFKA_OPENSHIFT_ADVERTISED_HOST:-${INFRA_HOST}}"
 export GHCR_OWNER="${GHCR_OWNER:-local}"
-IMAGE_TAG="${IMAGE_TAG:-0.7.0}"
+IMAGE_TAG="${IMAGE_TAG:-0.8.0}"
 MICROSHIFT_NAME="${MICROSHIFT_NAME:-commercehub-microshift}"
 
 echo "==> Compose: Oracle + Kafka + observability (no apps profile)"
@@ -51,8 +52,13 @@ if command -v podman >/dev/null 2>&1 && podman container exists "${MICROSHIFT_NA
   load_images_into_microshift
 fi
 
-echo "==> Apply manifests"
-"${ROOT_DIR}/scripts/openshift-apply.sh"
+if [[ "${GITOPS:-}" == "1" ]]; then
+  echo "==> GitOps: secrets, runtime ConfigMap, Argo CD"
+  "${ROOT_DIR}/scripts/argocd-install.sh"
+else
+  echo "==> Apply manifests"
+  "${ROOT_DIR}/scripts/openshift-apply.sh"
+fi
 
 echo
 echo "Stack is up."

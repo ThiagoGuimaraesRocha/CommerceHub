@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: order-service
     app.kubernetes.io/part-of: commercehub
-    app.kubernetes.io/version: "0.7.0"
+    app.kubernetes.io/version: "0.8.0"
 spec:
   selector:
     app.kubernetes.io/name: order-service
