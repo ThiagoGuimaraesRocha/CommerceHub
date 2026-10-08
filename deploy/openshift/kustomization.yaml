@@ -1,0 +1,24 @@
+# Placeholders (__INFRA_HOST__, ghcr.io/local/, :0.7.0) are substituted by
+# scripts/openshift-apply.sh. Do not apply this directory raw.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: commercehub
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - user-service-deployment.yaml
+  - user-service-service.yaml
+  - user-service-route.yaml
+  - user-service-migrate-job.yaml
+  - product-service-deployment.yaml
+  - product-service-service.yaml
+  - product-service-route.yaml
+  - product-service-migrate-job.yaml
+  - order-service-deployment.yaml
+  - order-service-service.yaml
+  - order-service-route.yaml
+  - order-service-migrate-job.yaml
+  - inventory-service-deployment.yaml
+  - inventory-service-service.yaml
+  - inventory-service-route.yaml
+  - inventory-service-migrate-job.yaml

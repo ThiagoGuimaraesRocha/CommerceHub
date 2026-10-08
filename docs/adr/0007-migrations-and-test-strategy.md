@@ -16,8 +16,8 @@ that persistence works on Oracle itself, not on an in-memory substitute.
   one history table per schema.
 - Hibernate never changes the schema (`schema-management.strategy=none`).
 - `quarkus.flyway.migrate-at-start` defaults to `true` so that `docker compose up` works out of the box.
-  It is controlled by `FLYWAY_MIGRATE_AT_START`; on OpenShift (Sprint 7) migrations can move to a
-  pre-deploy Job by setting it to `false` in the application pods.
+  It is controlled by `FLYWAY_MIGRATE_AT_START`; on OpenShift (Sprint 7) migrations run in a pre-deploy
+  Job (`COMMERCEHUB_MIGRATE_ONLY=true`) while application pods keep the flag `false`.
 
 ### Tests
 

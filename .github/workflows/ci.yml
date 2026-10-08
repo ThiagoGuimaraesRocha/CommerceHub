@@ -35,6 +35,9 @@ jobs:
       - name: Pre-pull Oracle test image
         run: docker pull gvenzl/oracle-free:23.26.3-slim-faststart@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093
 
+      - name: Validate OpenShift manifests
+        run: ./scripts/validate-manifests.sh
+
       - name: Build, unit, API and integration tests
         run: ./mvnw -B -ntp verify
 

@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: product-service-migrate
+  namespace: commercehub
+  labels:
+    app.kubernetes.io/name: product-service
+    app.kubernetes.io/part-of: commercehub
+    app.kubernetes.io/version: "0.7.0"
+    app.kubernetes.io/component: migrate
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: product-service
+        app.kubernetes.io/part-of: commercehub
+        app.kubernetes.io/version: "0.7.0"
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: ghcr.io/local/commercehub-product-service:0.7.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: commercehub-config
+          env:
+            - name: FLYWAY_MIGRATE_AT_START
+              value: "true"
+            - name: COMMERCEHUB_MIGRATE_ONLY
+              value: "true"
+            - name: PRODUCT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: commercehub-secrets
+                  key: PRODUCT_DB_PASSWORD
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

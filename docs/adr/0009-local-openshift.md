@@ -1,7 +1,8 @@
 # ADR 0009 — Local OpenShift environment
 
-- Status: Proposed (validated during Sprint 7)
+- Status: Accepted (Sprint 7)
 - Date: 2026-09-29
+- Updated: 2026-10-08
 
 ## Context
 
@@ -24,18 +25,21 @@ on the developer machine and starts together with the rest of the local stack.
 2. Infrastructure that is heavy or stateful (Oracle, Kafka) stays in Docker Compose; the four services are
    deployed **into** MicroShift from the versioned manifests, reaching Oracle and Kafka through the host.
    This keeps memory usage manageable and mirrors a real setup where databases live outside the cluster.
-3. A single entry point, `scripts/up.sh`, will start Compose, start MicroShift, wait for the API and apply
-   the manifests. A dedicated Compose profile (`openshift`) will be used if the spike confirms that the
-   MicroShift container runs reliably under Docker; otherwise `up.sh` starts it with Podman.
+3. A single entry point, `scripts/up.sh`, starts Compose (Oracle, Kafka, observability), starts MicroShift
+   with Podman, waits for the API and applies the manifests. There is no Compose `openshift` profile:
+   Docker Engine is not a supported MicroShift runtime.
 4. OpenShift Local (CRC) or the Developer Sandbox is used only to capture web console screenshots
    (Topology view) for the portfolio, since MicroShift has no console.
 
-## Open points for the Sprint 7 spike
+## Spike results (Sprint 7)
 
-- MicroShift upstream documents Podman; running under Docker Engine is not documented and must be tested.
-- Storage: TopoLVM needs an LVM volume; for the demo, use an `emptyDir`/hostPath approach or the LVM loop
-  device created by the upstream scripts.
-- Argo CD (Sprint 8) must be installed from upstream manifests, since MicroShift has no OperatorHub by default.
+- MicroShift upstream documents **Podman** (privileged bootc + systemd). Docker Engine is not a supported
+  runtime, so there is **no** Compose `openshift` profile. `scripts/up.sh` starts MicroShift with Podman
+  and Compose only for Oracle, Kafka and observability.
+- Storage: CommerceHub pods use **no PVC** (stateless JVMs). TopoLVM is not required for these workloads.
+- Kafka exposes a dedicated `OPENSHIFT` listener on host port `39092` so advertised brokers match `INFRA_HOST`.
+- Argo CD (Sprint 8) must be installed from upstream manifests; MicroShift has no OperatorHub by default.
+- Pinned image: `ghcr.io/microshift-io/microshift:4.20.0_g153ff0ca9_4.20.0_okd_scos.16`.
 
 ## Consequences
 
