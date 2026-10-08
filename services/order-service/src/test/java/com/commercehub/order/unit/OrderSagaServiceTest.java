@@ -19,6 +19,7 @@ import com.commercehub.order.infrastructure.messaging.KafkaTopics;
 import com.commercehub.order.infrastructure.messaging.MessageSerde;
 import com.commercehub.order.infrastructure.messaging.consumer.EventIdempotencyService;
 import com.commercehub.order.infrastructure.messaging.outbox.OutboxWriter;
+import com.commercehub.order.infrastructure.observability.BusinessMetrics;
 import com.commercehub.order.infrastructure.messaging.payload.InventoryReservationFailedPayload;
 import com.commercehub.order.infrastructure.messaging.payload.InventoryReservedPayload;
 import com.commercehub.order.infrastructure.messaging.payload.OrderCancelledPayload;
@@ -50,6 +51,9 @@ class OrderSagaServiceTest {
     @Mock
     EventIdempotencyService idempotency;
 
+    @Mock
+    BusinessMetrics metrics;
+
     OrderSagaService saga;
     MessageSerde serde;
 
@@ -66,7 +70,8 @@ class OrderSagaServiceTest {
                 new OrderCancellationService(transitions),
                 outboxWriter,
                 idempotency,
-                serde);
+                serde,
+                metrics);
     }
 
     @Test

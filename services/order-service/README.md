@@ -6,7 +6,8 @@ Product Service REST API. Confirm and cancel write to the transactional outbox (
 
 - OpenAPI: `http://localhost:8083/q/openapi`
 - Swagger UI: `http://localhost:8083/q/swagger-ui`
-- Health: `http://localhost:8083/q/health`
+- Health: `http://localhost:8083/q/health` (readiness includes `outbox`)
+- Metrics: `http://localhost:8083/q/metrics`
 
 ## Endpoints
 
@@ -68,6 +69,7 @@ curl -X POST http://localhost:8083/api/v1/orders/<id>/cancel \
 
 - Tables `ORDERS` and `ORDER_ITEMS`, created by Flyway migration `V2__create_orders.sql`.
 - Messaging tables (`OUTBOX_EVENTS`, `PROCESSED_EVENTS`) already exist from Sprint 2 (`V1`).
+  `V3` adds `TRACEPARENT` so the outbox relay continues the originating span on Kafka.
 - Cancellation constraints are enforced in the database (`ck_orders_cancel_*`).
 
 ## Configuration
@@ -96,6 +98,9 @@ curl -X POST http://localhost:8083/api/v1/orders/<id>/cancel \
 | `api/OrderResourceTest` | HTTP contract with REST Assured on Oracle |
 | `api/SecurityIT` | 401 without token; 403 on another customer's order |
 | `api/HealthEndpointTest` | Health and OpenAPI |
+| `api/MetricsEndpointTest` | Prometheus `/q/metrics` |
+| `api/ObservabilityIT` | Outbox readiness and business counters |
+| `api/TracePropagationIT` | W3C `traceparent` continues the HTTP span |
 | `api/InventoryEventConsumerTest` | In-memory inventory events |
 | `integration/OrderRepositoryIT` | Oracle mapping and cancellation constraints |
 | `integration/ProductClientIT` | REST client against WireMock |

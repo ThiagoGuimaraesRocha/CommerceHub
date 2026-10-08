@@ -6,6 +6,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -35,7 +37,8 @@ class OutboxRelayTest {
         RecordMetadata metadata = new RecordMetadata(new TopicPartition("commerce.order.events", 0), 0, 0, 0, 0, 0);
         when(producer.send(any())).thenReturn(CompletableFuture.completedFuture(metadata));
 
-        OutboxRelay relay = new OutboxRelay(repository, true, "localhost:9092", 50, 10, Duration.ofSeconds(1));
+        OutboxRelay relay = new OutboxRelay(
+                repository, GlobalOpenTelemetry.getTracer("test"), true, "localhost:9092", 50, 10, Duration.ofSeconds(1));
         relay.useProducer(producer);
         relay.publishBatch(List.of(event));
 
@@ -54,12 +57,33 @@ class OutboxRelayTest {
                 "e1", "Order", "o1", "OrderConfirmed", "EVENT", "commerce.order.events", "o1", "{}");
         when(producer.send(any())).thenReturn(CompletableFuture.failedFuture(new RuntimeException("broker down")));
 
-        OutboxRelay relay = new OutboxRelay(repository, true, "localhost:9092", 50, 3, Duration.ofMillis(50));
+        OutboxRelay relay = new OutboxRelay(
+                repository, GlobalOpenTelemetry.getTracer("test"), true, "localhost:9092", 50, 3, Duration.ofMillis(50));
         relay.useProducer(producer);
         relay.publishBatch(List.of(event, event, event));
 
         assertThat(event.getAttempts()).isEqualTo(3);
         assertThat(event.getStatus()).isEqualTo(OutboxEventEntity.STATUS_FAILED);
         verify(producer, times(3)).send(any());
+    }
+
+    @Test
+    void publishCopiesStoredTraceparentOntoTheKafkaRecord() {
+        String traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+        OutboxEventEntity event = OutboxEventEntity.pending(
+                "e1", "Order", "o1", "OrderConfirmed", "EVENT", "commerce.order.events", "o1", "{}", traceparent);
+        RecordMetadata metadata = new RecordMetadata(new TopicPartition("commerce.order.events", 0), 0, 0, 0, 0, 0);
+        when(producer.send(any())).thenReturn(CompletableFuture.completedFuture(metadata));
+
+        OutboxRelay relay = new OutboxRelay(
+                repository, GlobalOpenTelemetry.getTracer("test"), true, "localhost:9092", 50, 10, Duration.ofSeconds(1));
+        relay.useProducer(producer);
+        relay.publishBatch(List.of(event));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<ProducerRecord<String, String>> captor = ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(producer).send(captor.capture());
+        assertThat(new String(captor.getValue().headers().lastHeader("traceparent").value(), StandardCharsets.UTF_8))
+                .isEqualTo(traceparent);
     }
 }

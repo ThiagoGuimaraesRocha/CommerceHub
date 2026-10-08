@@ -5,6 +5,7 @@ Product catalog of CommerceHub: SKU, name, category, price and active flag. Owns
 - OpenAPI: `http://localhost:8082/q/openapi`
 - Swagger UI: `http://localhost:8082/q/swagger-ui`
 - Health: `http://localhost:8082/q/health`
+- Metrics: `http://localhost:8082/q/metrics`
 
 ## Endpoints
 
@@ -107,6 +108,7 @@ Validation error:
 | `api/ProductResourceTest` | HTTP contract with REST Assured on Oracle |
 | `api/SecurityIT` | Public GET; 401/403 on writes |
 | `api/HealthEndpointTest` | Health and OpenAPI |
+| `api/MetricsEndpointTest` | Prometheus `/q/metrics` |
 | `integration/ProductRepositoryIT` | Oracle mapping, unique SKU, optimistic locking, timestamps |
 
 Oracle is started automatically by Quarkus Dev Services (Docker required).

@@ -14,7 +14,8 @@ development.
 - A root `docker-compose.yml` describes the local infrastructure.
 - Oracle starts by default (`docker compose up -d`), which supports running services in Quarkus dev mode.
 - The four application containers live in the `apps` profile (`docker compose --profile apps up -d --build`).
-- Kafka, Jaeger, Prometheus, Grafana and the OpenTelemetry Collector are added in the sprints that need them.
+- Kafka was added in Sprint 4. Jaeger v2, Prometheus and Grafana were added in Sprint 6 (no OpenTelemetry
+  Collector; see [ADR 0011](0011-distributed-observability.md)).
 - Quarkus Dev Services are disabled: the infrastructure is always the explicit Compose file, so dev mode and
   containers behave the same way.
 - Compose health checks gate startup: services start only after Oracle is healthy, and each service reports

@@ -5,7 +5,8 @@ available/reserved quantities; Order Service never touches this schema.
 
 - OpenAPI: `http://localhost:8084/q/openapi`
 - Swagger UI: `http://localhost:8084/q/swagger-ui`
-- Health: `http://localhost:8084/q/health`
+- Health: `http://localhost:8084/q/health` (readiness includes `outbox`)
+- Metrics: `http://localhost:8084/q/metrics`
 
 ## Endpoints
 
@@ -61,7 +62,7 @@ Unknown product:
 ## Persistence
 
 - `INVENTORY_ITEMS` and `STOCK_RESERVATIONS`, Flyway `V2__create_inventory.sql`.
-- Messaging tables (`OUTBOX_EVENTS`, `PROCESSED_EVENTS`) from Sprint 2 (`V1`).
+- Messaging tables (`OUTBOX_EVENTS`, `PROCESSED_EVENTS`) from Sprint 2 (`V1`). `V3` adds `TRACEPARENT`.
 
 ## Configuration
 
@@ -84,6 +85,8 @@ Unknown product:
 | `unit/InventorySagaServiceTest` | Outbox replies and idempotency |
 | `api/InventoryAdminResourceTest` | HTTP contract on Oracle |
 | `api/SecurityIT` | 401/403 on the admin API |
+| `api/MetricsEndpointTest` | Prometheus `/q/metrics` |
+| `unit/OutboxHealthCheckTest` | Readiness DOWN on `FAILED` outbox rows |
 | `api/OrderEventConsumerTest` | In-memory `OrderConfirmed` |
 | `api/InventoryCommandConsumerTest` | In-memory `ReleaseInventory` |
 | `api/IdempotencyTest` | Duplicate event, one reservation |

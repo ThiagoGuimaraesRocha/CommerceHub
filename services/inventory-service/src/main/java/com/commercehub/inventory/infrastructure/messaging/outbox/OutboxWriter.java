@@ -3,6 +3,7 @@ package com.commercehub.inventory.infrastructure.messaging.outbox;
 import com.commercehub.inventory.infrastructure.messaging.EventEnvelope;
 import com.commercehub.inventory.infrastructure.messaging.KafkaTopics;
 import com.commercehub.inventory.infrastructure.messaging.MessageSerde;
+import com.commercehub.inventory.infrastructure.observability.TraceContextPropagator;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -44,7 +45,8 @@ public class OutboxWriter {
                 causationId,
                 serde.toTree(payload));
         repository.persist(OutboxEventEntity.pending(
-                eventId, AGGREGATE_TYPE, orderId, eventType, EventEnvelope.KIND_EVENT, topic, orderId, serde.toJson(envelope)));
+                eventId, AGGREGATE_TYPE, orderId, eventType, EventEnvelope.KIND_EVENT, topic, orderId, serde.toJson(envelope),
+                TraceContextPropagator.currentTraceparent()));
         return eventId;
     }
 }

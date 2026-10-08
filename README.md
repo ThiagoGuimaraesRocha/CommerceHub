@@ -22,6 +22,8 @@ OpenShift, observability and CI/CD/GitOps.
 - **RFC 9457 Problem Details**, optimistic locking, versioned REST APIs, OpenAPI + Swagger UI.
 - **Demo JWT** issued by the User Service: catalog writes and inventory admin require `ADMIN`; orders
   are scoped to the authenticated customer. This is not a corporate identity provider.
+- **Distributed tracing and metrics**: OpenTelemetry (W3C `traceparent` on HTTP and Kafka), Jaeger v2,
+  Prometheus scrape of `/q/metrics`, Grafana dashboard provisioned from the repo.
 - **Tests on real Oracle**: unit (JUnit 5 + Mockito), API (REST Assured) and integration tests with
   Oracle Database Free started by Quarkus Dev Services.
 - **Reproducible local stack** with Docker Compose, pinned image tags and digests, no secrets in Git.
@@ -36,12 +38,12 @@ OpenShift, observability and CI/CD/GitOps.
 | S3 | Order Service: orders, items, REST integration with Product Service | Done |
 | S4 | Kafka + Inventory Service: saga, outbox, idempotency, stock admin endpoint | Done |
 | S5 | User Service + JWT | Done |
-| S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Planned |
+| S6 | Observability: OpenTelemetry, Jaeger v2, Prometheus, Grafana | Done |
 | S7 | OpenShift deployment (local MicroShift/OKD) | Planned |
 | S8 | CI/CD (GitHub Actions to GHCR, Argo CD, Jenkinsfile) and portfolio polish | Planned |
 
 Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr). Project plan (Portuguese):
-[`docs/plano/CommerceHub_Plano_Base_v0.7.md`](docs/plano/CommerceHub_Plano_Base_v0.7.md).
+[`docs/plano/CommerceHub_Plano_Base_v0.8.md`](docs/plano/CommerceHub_Plano_Base_v0.8.md).
 
 ## Architecture
 
@@ -68,6 +70,9 @@ Sprint notes: [`docs/sprints`](docs/sprints). Decisions: [`docs/adr`](docs/adr).
 
      ORDER_SCHEMA belongs to Order Service. All schemas live in one Oracle Database Free
      instance (FREEPDB1); no service reads another service's tables.
+
+     Traces (OTLP gRPC 4317) -> Jaeger v2
+     Metrics (/q/metrics)    -> Prometheus -> Grafana
 ```
 
 ### Order saga
@@ -102,19 +107,20 @@ or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already e
 | Messaging | Apache Kafka 3.9.1 (KRaft), transactional outbox, idempotent consumers |
 | API docs | SmallRye OpenAPI + Swagger UI, Postman collection |
 | Tests | JUnit 5, Mockito, AssertJ, REST Assured, Quarkus Dev Services (Testcontainers) |
+| Observability | OpenTelemetry, Jaeger v2 `2.21.0`, Prometheus `v3.15.0`, Grafana OSS `12.2.0` |
 | Build / CI | Maven Wrapper 3.9.16, GitHub Actions |
 | Containers | Multi-stage Dockerfile, `ubi9/openjdk-21-runtime` (OpenShift-ready), Docker Compose |
 
 ## Quick start
 
-Prerequisites: JDK 21+, Docker Engine 24+ with Compose v2, about 4 GB of free RAM.
+Prerequisites: JDK 21+, Docker Engine 24+ with Compose v2, about 6 GB of free RAM.
 
 ```bash
 git clone https://github.com/ThiagoGuimaraesRocha/CommerceHub.git
 cd CommerceHub
 cp .env.example .env                           # replace every "change-me" value
 
-docker compose --profile apps up -d --build    # Oracle + Kafka + the four services
+docker compose --profile apps up -d --build    # Oracle + Kafka + Jaeger + Prometheus + Grafana + the four services
 docker compose --profile apps ps               # wait until everything is "healthy"
 
 ./scripts/seed.sh                              # login as bootstrap admin, then load users/products/stock through the APIs
@@ -126,7 +132,7 @@ Swagger UI: <http://localhost:8082/q/swagger-ui>
 ### Development mode (live reload)
 
 ```bash
-docker compose up -d oracle kafka
+docker compose up -d                 # Oracle + Kafka + Jaeger + Prometheus + Grafana
 ./scripts/dev.sh product-service     # or user-service, order-service, inventory-service
 ```
 
@@ -146,6 +152,21 @@ CI runs the same command on every push and pull request.
 docker compose --profile apps down       # keep Oracle data
 docker compose --profile apps down -v    # also delete the Oracle volume
 ```
+
+### Observability walkthrough
+
+Jaeger UI: <http://localhost:16686> · Prometheus: <http://localhost:9090> · Grafana: <http://localhost:3000>
+(Grafana login comes from `.env`; it is not listed here.) Metrics: `http://localhost:8083/q/metrics`.
+
+1. Start the stack and seed as in Quick start (`docker compose --profile apps up -d --build`, then `./scripts/seed.sh`).
+2. Log in and confirm an order (Postman collection, or `POST /api/v1/orders` then `POST /api/v1/orders/{id}/confirm`).
+3. In Jaeger, search service `order-service` for the last traces. A successful confirm should show the Order
+   Service HTTP span, the Product Service REST snapshot, the outbox publish, and the Inventory Service consumer
+   on the same `traceparent`.
+4. In Grafana, open the provisioned **CommerceHub** dashboard (folder CommerceHub). You should see at least
+   orders created/confirmed, cancellations, inventory reservations, outbox gauges and HTTP traffic.
+5. To locate a failure: confirm an order whose SKU has no stock. Jaeger still shows the saga; the order is
+   cancelled with `INSUFFICIENT_STOCK`; Grafana plots `commercehub_orders_cancelled_total{reason="INSUFFICIENT_STOCK"}`.
 
 ## API
 
@@ -230,6 +251,8 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | `KAFKA_HOST_PORT` | `29092` | host port mapped to Kafka |
 | `JWT_ISSUER` | `https://commercehub.example/issuer` | JWT issuer, must match on every service |
 | `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD` | placeholders in `.env.example` | bootstrap ADMIN (User Service) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` (host) / `http://jaeger:4317` (Compose) | OTLP gRPC traces |
+| `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` | placeholders in `.env.example` | Grafana login (local only) |
 | `GHCR_OWNER` | `local` | image prefix `ghcr.io/<owner>/commercehub-<service>` |
 
 `.env` is ignored by Git. Oracle reads the passwords only on its first start; to change them, run
@@ -242,8 +265,10 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 ├── pom.xml                       # parent POM (Quarkus BOM, plugin versions, Java 21 enforcement)
 ├── services/                     # user-, product-, order-, inventory-service
 ├── docker/service.Dockerfile     # single multi-stage Dockerfile for every service
-├── docker-compose.yml            # Oracle + Kafka (default) + application containers (profile "apps")
+├── docker-compose.yml            # Oracle + Kafka + Jaeger/Prometheus/Grafana (default) + apps profile
 ├── infra/oracle/init/            # creates one schema per service on the first Oracle start
+├── infra/prometheus/             # Prometheus scrape config
+├── infra/grafana/                # provisioned datasources and CommerceHub dashboard
 ├── data/seed/                    # demo data, loaded through the APIs
 ├── scripts/                      # dev.sh (Quarkus dev mode), seed.sh (demo data)
 ├── postman/                      # Postman collection and environment
@@ -268,6 +293,7 @@ Kafka messages share one envelope (`eventId`, `eventType`, `messageKind`, `corre
 | [0008](docs/adr/0008-http-api-conventions.md) | HTTP API conventions |
 | [0009](docs/adr/0009-local-openshift.md) | Local OpenShift with MicroShift (OKD) |
 | [0010](docs/adr/0010-demo-jwt.md) | Demonstration JWT (not a corporate IdP) |
+| [0011](docs/adr/0011-distributed-observability.md) | OpenTelemetry, Jaeger v2, Prometheus and Grafana |
 
 ## Conventions
 

@@ -20,6 +20,7 @@ import com.commercehub.order.infrastructure.client.ProductClient;
 import com.commercehub.order.infrastructure.client.ProductSnapshotResponse;
 import com.commercehub.order.infrastructure.messaging.KafkaTopics;
 import com.commercehub.order.infrastructure.messaging.outbox.OutboxWriter;
+import com.commercehub.order.infrastructure.observability.BusinessMetrics;
 import com.commercehub.order.infrastructure.messaging.payload.OrderCancelledPayload;
 import com.commercehub.order.infrastructure.messaging.payload.OrderConfirmedPayload;
 import com.commercehub.order.infrastructure.messaging.payload.ReleaseInventoryPayload;
@@ -44,6 +45,7 @@ public class OrderApplicationService {
     private final OrderStateTransitionService transitions;
     private final OrderCancellationService cancellationService;
     private final OutboxWriter outboxWriter;
+    private final BusinessMetrics metrics;
     private final ProductClient productClient;
 
     public OrderApplicationService(
@@ -53,6 +55,7 @@ public class OrderApplicationService {
             OrderStateTransitionService transitions,
             OrderCancellationService cancellationService,
             OutboxWriter outboxWriter,
+            BusinessMetrics metrics,
             @RestClient ProductClient productClient) {
         this.repository = repository;
         this.mapper = mapper;
@@ -60,6 +63,7 @@ public class OrderApplicationService {
         this.transitions = transitions;
         this.cancellationService = cancellationService;
         this.outboxWriter = outboxWriter;
+        this.metrics = metrics;
         this.productClient = productClient;
     }
 
@@ -95,6 +99,7 @@ public class OrderApplicationService {
         order.setCurrencyCode(currency);
         order.setTotalAmount(calculator.orderTotal(order.getItems().stream().map(OrderItemEntity::getLineTotal).toList()));
         repository.persistAndFlush(order);
+        metrics.recordCreated();
         return mapper.toResponse(order);
     }
 
@@ -111,6 +116,7 @@ public class OrderApplicationService {
         OrderEntity order = loadOwned(id, customerId);
         transitions.confirm(order);
         outboxWriter.writeEvent("OrderConfirmed", KafkaTopics.ORDER_EVENTS, order.getId(), null, toConfirmedPayload(order));
+        metrics.recordConfirmed();
         return mapper.toResponse(order);
     }
 
@@ -126,6 +132,7 @@ public class OrderApplicationService {
             outboxWriter.writeCommand("ReleaseInventory", KafkaTopics.INVENTORY_COMMANDS, order.getId(), null,
                     new ReleaseInventoryPayload(order.getId(), ReleaseInventoryPayload.REASON_CUSTOMER_CANCELLED));
         }
+        metrics.recordCancelled(order.getCancellationReason().name());
         return mapper.toResponse(order);
     }
 
