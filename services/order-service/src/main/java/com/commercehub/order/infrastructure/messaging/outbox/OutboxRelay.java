@@ -77,6 +77,11 @@ public class OutboxRelay {
         publishBatch(repository.findPending(batchSize));
     }
 
+    /** Test seam: inject a producer without opening a real Kafka connection. */
+    void useProducer(Producer<String, String> producer) {
+        this.producer = producer;
+    }
+
     void publishBatch(List<OutboxEventEntity> pending) {
         for (OutboxEventEntity event : pending) {
             try {

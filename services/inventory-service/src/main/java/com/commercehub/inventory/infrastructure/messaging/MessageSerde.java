@@ -1,12 +1,14 @@
 package com.commercehub.inventory.infrastructure.messaging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**
  * Serializes envelopes to the JSON stored in the outbox and parses the JSON read from Kafka.
+ * Consumers are tolerant readers: unknown fields (envelope or payload) are ignored.
  */
 @ApplicationScoped
 public class MessageSerde {
@@ -14,7 +16,7 @@ public class MessageSerde {
     private final ObjectMapper mapper;
 
     public MessageSerde(ObjectMapper mapper) {
-        this.mapper = mapper;
+        this.mapper = mapper.copy().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 
     public JsonNode toTree(Object payload) {

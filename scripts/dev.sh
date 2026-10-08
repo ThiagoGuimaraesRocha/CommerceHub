@@ -23,6 +23,7 @@ source "${ROOT_DIR}/.env"
 set +a
 
 export DB_URL="${DB_URL:-jdbc:oracle:thin:@//localhost:${ORACLE_HOST_PORT:-1521}/FREEPDB1}"
+export KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:${KAFKA_HOST_PORT:-29092}}"
 
 cd "${ROOT_DIR}"
 exec ./mvnw -pl "services/${SERVICE}" -am quarkus:dev

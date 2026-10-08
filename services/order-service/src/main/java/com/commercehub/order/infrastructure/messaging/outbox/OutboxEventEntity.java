@@ -3,6 +3,7 @@ package com.commercehub.order.infrastructure.messaging.outbox;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -42,6 +43,7 @@ public class OutboxEventEntity {
     @Column(name = "message_key", length = 36, nullable = false, updatable = false)
     private String messageKey;
 
+    @Lob
     @Column(name = "payload", nullable = false, updatable = false)
     private String payload;
 
