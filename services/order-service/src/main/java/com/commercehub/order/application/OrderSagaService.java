@@ -8,6 +8,7 @@ import com.commercehub.order.infrastructure.messaging.KafkaTopics;
 import com.commercehub.order.infrastructure.messaging.MessageSerde;
 import com.commercehub.order.infrastructure.messaging.consumer.EventIdempotencyService;
 import com.commercehub.order.infrastructure.messaging.outbox.OutboxWriter;
+import com.commercehub.order.infrastructure.observability.BusinessMetrics;
 import com.commercehub.order.infrastructure.messaging.payload.InventoryReservationFailedPayload;
 import com.commercehub.order.infrastructure.messaging.payload.InventoryReservedPayload;
 import com.commercehub.order.infrastructure.messaging.payload.OrderCancelledPayload;
@@ -38,6 +39,7 @@ public class OrderSagaService {
     private final OutboxWriter outboxWriter;
     private final EventIdempotencyService idempotency;
     private final MessageSerde serde;
+    private final BusinessMetrics metrics;
 
     public OrderSagaService(
             OrderRepository repository,
@@ -45,13 +47,15 @@ public class OrderSagaService {
             OrderCancellationService cancellationService,
             OutboxWriter outboxWriter,
             EventIdempotencyService idempotency,
-            MessageSerde serde) {
+            MessageSerde serde,
+            BusinessMetrics metrics) {
         this.repository = repository;
         this.transitions = transitions;
         this.cancellationService = cancellationService;
         this.outboxWriter = outboxWriter;
         this.idempotency = idempotency;
         this.serde = serde;
+        this.metrics = metrics;
     }
 
     /**
@@ -108,6 +112,7 @@ public class OrderSagaService {
                 order.getId(),
                 envelope.eventId(),
                 new OrderCancelledPayload(order.getId(), OrderStatus.CONFIRMED.name(), reason.name(), "SYSTEM"));
+        metrics.recordCancelled(reason.name());
         LOG.infof("Order %s cancelled by SYSTEM (%s)", order.getId(), reason);
     }
 

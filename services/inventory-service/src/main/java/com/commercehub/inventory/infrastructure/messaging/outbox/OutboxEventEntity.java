@@ -63,11 +63,19 @@ public class OutboxEventEntity {
     @Column(name = "published_at")
     private OffsetDateTime publishedAt;
 
+    @Column(name = "traceparent", length = 55, updatable = false)
+    private String traceparent;
+
     protected OutboxEventEntity() {
     }
 
     public static OutboxEventEntity pending(String eventId, String aggregateType, String aggregateId,
             String eventType, String messageKind, String topic, String messageKey, String payload) {
+        return pending(eventId, aggregateType, aggregateId, eventType, messageKind, topic, messageKey, payload, null);
+    }
+
+    public static OutboxEventEntity pending(String eventId, String aggregateType, String aggregateId,
+            String eventType, String messageKind, String topic, String messageKey, String payload, String traceparent) {
         OutboxEventEntity entity = new OutboxEventEntity();
         entity.eventId = eventId;
         entity.aggregateType = aggregateType;
@@ -77,6 +85,7 @@ public class OutboxEventEntity {
         entity.topic = topic;
         entity.messageKey = messageKey;
         entity.payload = payload;
+        entity.traceparent = traceparent;
         entity.status = STATUS_PENDING;
         entity.attempts = 0;
         return entity;
@@ -121,6 +130,10 @@ public class OutboxEventEntity {
 
     public String getPayload() {
         return payload;
+    }
+
+    public String getTraceparent() {
+        return traceparent;
     }
 
     public String getStatus() {

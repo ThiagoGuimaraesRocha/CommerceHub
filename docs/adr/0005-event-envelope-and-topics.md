@@ -24,5 +24,6 @@ deduplicate by `(eventId, consumerName)`, correlate by `orderId`, and stay decou
 ## Consequences
 
 - Deduplication, tracing and debugging use the same fields in every service.
-- `causationId` makes the saga reconstructable from logs even before distributed tracing (Sprint 6).
+- `causationId` makes the saga reconstructable from logs. Distributed tracing (W3C `traceparent`) was added
+  in Sprint 6 ([ADR 0011](0011-distributed-observability.md)).
 - No schema registry is used; JSON Schema in the repository is enough for the portfolio scope.

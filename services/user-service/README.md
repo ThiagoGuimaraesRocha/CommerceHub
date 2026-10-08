@@ -8,6 +8,7 @@ token, MFA or key rotation. See [ADR 0010](../../docs/adr/0010-demo-jwt.md).
 - OpenAPI: `http://localhost:8081/q/openapi`
 - Swagger UI: `http://localhost:8081/q/swagger-ui`
 - Health: `http://localhost:8081/q/health`
+- Metrics: `http://localhost:8081/q/metrics`
 
 ## Endpoints
 
@@ -85,5 +86,6 @@ Invalid credentials:
 | `api/UserResourceTest` | create / get / 409 / 403 |
 | `api/SecurityIT` | 401/403 and real JWT round-trip to `/me` |
 | `api/HealthEndpointTest` | Health and OpenAPI |
+| `api/MetricsEndpointTest` | Prometheus `/q/metrics` |
 
 Oracle is started automatically by Quarkus Dev Services (Docker required).

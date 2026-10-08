@@ -5,6 +5,7 @@ import com.commercehub.inventory.infrastructure.messaging.KafkaTopics;
 import com.commercehub.inventory.infrastructure.messaging.MessageSerde;
 import com.commercehub.inventory.infrastructure.messaging.consumer.EventIdempotencyService;
 import com.commercehub.inventory.infrastructure.messaging.outbox.OutboxWriter;
+import com.commercehub.inventory.infrastructure.observability.BusinessMetrics;
 import com.commercehub.inventory.infrastructure.messaging.payload.InventoryReleasedPayload;
 import com.commercehub.inventory.infrastructure.messaging.payload.InventoryReservationFailedPayload;
 import com.commercehub.inventory.infrastructure.messaging.payload.InventoryReservedPayload;
@@ -36,16 +37,19 @@ public class InventorySagaService {
     private final OutboxWriter outboxWriter;
     private final EventIdempotencyService idempotency;
     private final MessageSerde serde;
+    private final BusinessMetrics metrics;
 
     public InventorySagaService(
             StockReservationService reservationService,
             OutboxWriter outboxWriter,
             EventIdempotencyService idempotency,
-            MessageSerde serde) {
+            MessageSerde serde,
+            BusinessMetrics metrics) {
         this.reservationService = reservationService;
         this.outboxWriter = outboxWriter;
         this.idempotency = idempotency;
         this.serde = serde;
+        this.metrics = metrics;
     }
 
     @Retry(maxRetries = 4, delay = 200, jitter = 100, retryOn = Exception.class)
@@ -94,6 +98,7 @@ public class InventorySagaService {
                     .toList();
             outboxWriter.writeEvent(EVENT_INVENTORY_RESERVED, KafkaTopics.INVENTORY_EVENTS,
                     payload.orderId(), envelope.eventId(), new InventoryReservedPayload(payload.orderId(), reservations));
+            metrics.recordReservation(BusinessMetrics.OUTCOME_RESERVED);
             LOG.infof("Order %s: reserved %d line(s)", payload.orderId(), reservations.size());
         } else {
             List<InventoryReservationFailedPayload.UnavailableItem> unavailable = outcome.unavailableItems().stream()
@@ -103,6 +108,7 @@ public class InventorySagaService {
             outboxWriter.writeEvent(EVENT_INVENTORY_RESERVATION_FAILED, KafkaTopics.INVENTORY_EVENTS,
                     payload.orderId(), envelope.eventId(),
                     new InventoryReservationFailedPayload(payload.orderId(), outcome.failureReason(), unavailable));
+            metrics.recordReservation(BusinessMetrics.OUTCOME_FAILED);
             LOG.infof("Order %s: reservation failed (%s)", payload.orderId(), outcome.failureReason());
         }
     }
@@ -119,6 +125,7 @@ public class InventorySagaService {
                 .toList();
         outboxWriter.writeEvent(EVENT_INVENTORY_RELEASED, KafkaTopics.INVENTORY_EVENTS,
                 payload.orderId(), envelope.eventId(), new InventoryReleasedPayload(payload.orderId(), releasedItems));
+        metrics.recordReservation(BusinessMetrics.OUTCOME_RELEASED);
         LOG.infof("Order %s: released %d line(s)", payload.orderId(), releasedItems.size());
     }
 }

@@ -76,7 +76,8 @@ The free-text note stays in `ORDER_SCHEMA`; it is **not** copied into events.
   envelope in the **same transaction** as the business change.
 - A scheduled relay (Quarkus Scheduler) publishes `PENDING` rows in `created_at` order, then sets
   `PUBLISHED` + `published_at`. On error it increments `attempts` and stores `last_error`; after 10 attempts
-  the row becomes `FAILED` and is reported by a health check and a metric (Sprint 6).
+  the row becomes `FAILED` and is reported by `OutboxHealthCheck` (readiness DOWN) and the
+  `commercehub_outbox_events{status="FAILED"}` gauge.
 - Delivery is at-least-once; consumers are idempotent, so the business effect happens exactly once.
 
 ### Idempotent consumers

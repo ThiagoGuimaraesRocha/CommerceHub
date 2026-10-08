@@ -24,6 +24,8 @@ set +a
 
 export DB_URL="${DB_URL:-jdbc:oracle:thin:@//localhost:${ORACLE_HOST_PORT:-1521}/FREEPDB1}"
 export KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:${KAFKA_HOST_PORT:-29092}}"
+export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4317}"
+export OTEL_EXPORTER_OTLP_PROTOCOL="${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}"
 
 cd "${ROOT_DIR}"
 exec ./mvnw -pl "services/${SERVICE}" -am quarkus:dev

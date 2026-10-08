@@ -1,0 +1,23 @@
+package com.commercehub.order.api;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
+
+import io.quarkus.test.junit.QuarkusTest;
+import org.junit.jupiter.api.Test;
+
+@QuarkusTest
+class MetricsEndpointTest {
+
+    @Test
+    void prometheusMetricsArePublic() {
+        given()
+                .when().get("/q/metrics")
+                .then()
+                .statusCode(200)
+                .contentType(containsString("text/plain"))
+                .body(containsString("jvm_"))
+                .body(containsString("commercehub_orders_created"))
+                .body(containsString("commercehub_outbox_events"));
+    }
+}

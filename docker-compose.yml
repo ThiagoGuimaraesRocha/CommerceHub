@@ -1,8 +1,8 @@
 name: commercehub
 
 # Infrastructure starts by default. Application containers are opt-in:
-#   docker compose up -d                       -> Oracle + Kafka (for quarkus:dev)
-#   docker compose --profile apps up -d --build -> Oracle + Kafka + the four services
+#   docker compose up -d                       -> Oracle + Kafka + Jaeger + Prometheus + Grafana
+#   docker compose --profile apps up -d --build -> plus the four services
 
 x-service: &service
   profiles: ["apps"]
@@ -21,6 +21,9 @@ x-db-url: &db-url jdbc:oracle:thin:@//oracle:1521/FREEPDB1
 
 # In-cluster bootstrap address shared by the event-driven services (Sprint 4).
 x-kafka-bootstrap: &kafka-bootstrap kafka:9092
+
+# Jaeger v2 native OTLP gRPC (Sprint 6). Host-side quarkus:dev uses localhost:4317.
+x-otel-endpoint: &otel-endpoint http://jaeger:4317
 
 services:
   oracle:
@@ -72,6 +75,49 @@ services:
       retries: 20
       start_period: 20s
 
+  # Jaeger v2 all-in-one: OTLP on 4317/4318, UI on 16686. No separate collector (ADR 0011).
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.21.0
+    restart: unless-stopped
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+    mem_limit: 512m
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    mem_limit: 384m
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me-grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - jaeger
+    mem_limit: 256m
+
   user-service:
     <<: *service
     build:
@@ -79,8 +125,8 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: user-service
-        VERSION: 0.5.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.5.0
+        VERSION: 0.6.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-user-service:0.6.0
     environment:
       DB_URL: *db-url
       USER_DB_PASSWORD: ${USER_DB_PASSWORD}
@@ -89,6 +135,8 @@ services:
       DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-}
       DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
       DEMO_ADMIN_FULL_NAME: ${DEMO_ADMIN_FULL_NAME:-CommerceHub Admin}
+      OTEL_EXPORTER_OTLP_ENDPOINT: *otel-endpoint
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     ports:
       - "8081:8080"
 
@@ -99,12 +147,14 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: product-service
-        VERSION: 0.5.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.5.0
+        VERSION: 0.6.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-product-service:0.6.0
     environment:
       DB_URL: *db-url
       PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
       JWT_ISSUER: ${JWT_ISSUER:-https://commercehub.example/issuer}
+      OTEL_EXPORTER_OTLP_ENDPOINT: *otel-endpoint
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     ports:
       - "8082:8080"
 
@@ -115,14 +165,16 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: order-service
-        VERSION: 0.5.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.5.0
+        VERSION: 0.6.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-order-service:0.6.0
     environment:
       DB_URL: *db-url
       ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
       PRODUCT_SERVICE_URL: http://product-service:8080
       KAFKA_BOOTSTRAP_SERVERS: *kafka-bootstrap
       JWT_ISSUER: ${JWT_ISSUER:-https://commercehub.example/issuer}
+      OTEL_EXPORTER_OTLP_ENDPOINT: *otel-endpoint
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     ports:
       - "8083:8080"
     depends_on:
@@ -140,13 +192,15 @@ services:
       dockerfile: docker/service.Dockerfile
       args:
         SERVICE: inventory-service
-        VERSION: 0.5.0
-    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.5.0
+        VERSION: 0.6.0
+    image: ghcr.io/${GHCR_OWNER:-local}/commercehub-inventory-service:0.6.0
     environment:
       DB_URL: *db-url
       INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: *kafka-bootstrap
       JWT_ISSUER: ${JWT_ISSUER:-https://commercehub.example/issuer}
+      OTEL_EXPORTER_OTLP_ENDPOINT: *otel-endpoint
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     ports:
       - "8084:8080"
     depends_on:
@@ -157,3 +211,5 @@ services:
 
 volumes:
   oracle-data:
+  prometheus-data:
+  grafana-data:

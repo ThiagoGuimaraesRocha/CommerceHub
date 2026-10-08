@@ -2,6 +2,7 @@ package com.commercehub.order.api;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.notNullValue;
 
 import io.quarkus.test.junit.QuarkusTest;
@@ -25,7 +26,8 @@ class HealthEndpointTest {
                 .when().get("/q/health/ready")
                 .then()
                 .statusCode(200)
-                .body("status", equalTo("UP"));
+                .body("status", equalTo("UP"))
+                .body("checks.name", hasItem("outbox"));
     }
 
     @Test

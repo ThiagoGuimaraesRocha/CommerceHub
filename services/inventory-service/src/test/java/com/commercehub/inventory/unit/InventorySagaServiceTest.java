@@ -15,6 +15,7 @@ import com.commercehub.inventory.infrastructure.messaging.KafkaTopics;
 import com.commercehub.inventory.infrastructure.messaging.MessageSerde;
 import com.commercehub.inventory.infrastructure.messaging.consumer.EventIdempotencyService;
 import com.commercehub.inventory.infrastructure.messaging.outbox.OutboxWriter;
+import com.commercehub.inventory.infrastructure.observability.BusinessMetrics;
 import com.commercehub.inventory.infrastructure.messaging.payload.InventoryReleasedPayload;
 import com.commercehub.inventory.infrastructure.messaging.payload.InventoryReservationFailedPayload;
 import com.commercehub.inventory.infrastructure.messaging.payload.InventoryReservedPayload;
@@ -47,6 +48,9 @@ class InventorySagaServiceTest {
     @Mock
     EventIdempotencyService idempotency;
 
+    @Mock
+    BusinessMetrics metrics;
+
     InventorySagaService saga;
     MessageSerde serde;
 
@@ -56,7 +60,7 @@ class InventorySagaServiceTest {
                 .registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         serde = new MessageSerde(mapper);
-        saga = new InventorySagaService(reservationService, outboxWriter, idempotency, serde);
+        saga = new InventorySagaService(reservationService, outboxWriter, idempotency, serde, metrics);
     }
 
     @Test

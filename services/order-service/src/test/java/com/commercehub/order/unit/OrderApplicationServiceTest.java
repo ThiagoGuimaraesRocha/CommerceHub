@@ -26,6 +26,7 @@ import com.commercehub.order.infrastructure.client.ProductClient;
 import com.commercehub.order.infrastructure.client.ProductSnapshotResponse;
 import com.commercehub.order.infrastructure.messaging.KafkaTopics;
 import com.commercehub.order.infrastructure.messaging.outbox.OutboxWriter;
+import com.commercehub.order.infrastructure.observability.BusinessMetrics;
 import com.commercehub.order.infrastructure.messaging.payload.OrderCancelledPayload;
 import com.commercehub.order.infrastructure.messaging.payload.OrderConfirmedPayload;
 import com.commercehub.order.infrastructure.messaging.payload.ReleaseInventoryPayload;
@@ -54,6 +55,9 @@ class OrderApplicationServiceTest {
     @Mock
     OutboxWriter outboxWriter;
 
+    @Mock
+    BusinessMetrics metrics;
+
     OrderApplicationService service;
 
     @BeforeEach
@@ -66,6 +70,7 @@ class OrderApplicationServiceTest {
                 transitions,
                 new OrderCancellationService(transitions),
                 outboxWriter,
+                metrics,
                 productClient);
     }
 
@@ -89,6 +94,7 @@ class OrderApplicationServiceTest {
         verify(repository).persistAndFlush(captor.capture());
         assertThat(captor.getValue().getItems()).hasSize(1);
         verify(outboxWriter, never()).writeEvent(any(), any(), any(), any(), any());
+        verify(metrics).recordCreated();
     }
 
     @Test

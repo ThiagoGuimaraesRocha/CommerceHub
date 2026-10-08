@@ -59,7 +59,7 @@ JSON Schema: [`schemas/envelope.schema.json`](schemas/envelope.schema.json).
 | Key | `orderId` (keeps all messages of one order in the same partition, preserving order) |
 | Value | Envelope JSON, UTF-8 |
 | Header `eventType` | Same as the envelope field (lets consumers skip messages without parsing) |
-| Header `traceparent` | W3C trace context, added in Sprint 6 (OpenTelemetry) |
+| Header `traceparent` | W3C trace context. Captured on `OUTBOX_EVENTS` when the row is written and set by the outbox relay so consumers join the originating HTTP/saga span ([ADR 0011](../adr/0011-distributed-observability.md)). |
 
 ### Data rules
 
