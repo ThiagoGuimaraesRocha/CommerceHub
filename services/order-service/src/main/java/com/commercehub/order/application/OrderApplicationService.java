@@ -13,9 +13,15 @@ import com.commercehub.order.exception.CurrencyMismatchException;
 import com.commercehub.order.exception.DuplicateProductInOrderException;
 import com.commercehub.order.exception.OrderNotFoundException;
 import com.commercehub.order.exception.RemoteProductServiceException;
+import com.commercehub.order.domain.enumtype.OrderStatus;
 import com.commercehub.order.exception.UnknownProductException;
 import com.commercehub.order.infrastructure.client.ProductClient;
 import com.commercehub.order.infrastructure.client.ProductSnapshotResponse;
+import com.commercehub.order.infrastructure.messaging.KafkaTopics;
+import com.commercehub.order.infrastructure.messaging.outbox.OutboxWriter;
+import com.commercehub.order.infrastructure.messaging.payload.OrderCancelledPayload;
+import com.commercehub.order.infrastructure.messaging.payload.OrderConfirmedPayload;
+import com.commercehub.order.infrastructure.messaging.payload.ReleaseInventoryPayload;
 import com.commercehub.order.infrastructure.persistence.OrderRepository;
 import com.commercehub.order.mapper.OrderMapper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -36,6 +42,7 @@ public class OrderApplicationService {
     private final OrderCalculator calculator;
     private final OrderStateTransitionService transitions;
     private final OrderCancellationService cancellationService;
+    private final OutboxWriter outboxWriter;
     private final ProductClient productClient;
 
     public OrderApplicationService(
@@ -44,12 +51,14 @@ public class OrderApplicationService {
             OrderCalculator calculator,
             OrderStateTransitionService transitions,
             OrderCancellationService cancellationService,
+            OutboxWriter outboxWriter,
             @RestClient ProductClient productClient) {
         this.repository = repository;
         this.mapper = mapper;
         this.calculator = calculator;
         this.transitions = transitions;
         this.cancellationService = cancellationService;
+        this.outboxWriter = outboxWriter;
         this.productClient = productClient;
     }
 
@@ -100,14 +109,31 @@ public class OrderApplicationService {
     public OrderResponse confirm(String id) {
         OrderEntity order = load(id);
         transitions.confirm(order);
+        outboxWriter.writeEvent("OrderConfirmed", KafkaTopics.ORDER_EVENTS, order.getId(), null, toConfirmedPayload(order));
         return mapper.toResponse(order);
     }
 
     @Transactional
     public OrderResponse cancel(String id, CancelOrderRequest request) {
         OrderEntity order = load(id);
+        OrderStatus previousStatus = order.getStatus();
         cancellationService.cancelByCustomer(order, request);
+        outboxWriter.writeEvent("OrderCancelled", KafkaTopics.ORDER_EVENTS, order.getId(), null,
+                new OrderCancelledPayload(order.getId(), previousStatus.name(),
+                        order.getCancellationReason().name(), "CUSTOMER"));
+        if (previousStatus == OrderStatus.INVENTORY_RESERVED) {
+            outboxWriter.writeCommand("ReleaseInventory", KafkaTopics.INVENTORY_COMMANDS, order.getId(), null,
+                    new ReleaseInventoryPayload(order.getId(), ReleaseInventoryPayload.REASON_CUSTOMER_CANCELLED));
+        }
         return mapper.toResponse(order);
+    }
+
+    private static OrderConfirmedPayload toConfirmedPayload(OrderEntity order) {
+        List<OrderConfirmedPayload.Item> items = order.getItems().stream()
+                .map(item -> new OrderConfirmedPayload.Item(item.getProductId(), item.getQuantity()))
+                .toList();
+        return new OrderConfirmedPayload(order.getId(), order.getCustomerId(), items,
+                Money.normalize(order.getTotalAmount()), order.getCurrencyCode());
     }
 
     public List<CancellationReasonResponse> cancellationReasons() {

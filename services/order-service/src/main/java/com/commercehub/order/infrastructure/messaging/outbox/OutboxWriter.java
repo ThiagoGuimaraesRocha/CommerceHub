@@ -1,0 +1,58 @@
+package com.commercehub.order.infrastructure.messaging.outbox;
+
+import com.commercehub.order.infrastructure.messaging.EventEnvelope;
+import com.commercehub.order.infrastructure.messaging.KafkaTopics;
+import com.commercehub.order.infrastructure.messaging.MessageSerde;
+import jakarta.enterprise.context.ApplicationScoped;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.UUID;
+
+/**
+ * Builds an {@link EventEnvelope} and stores it in the outbox. Must be called inside the business
+ * transaction so the message and the state change commit atomically.
+ */
+@ApplicationScoped
+public class OutboxWriter {
+
+    private static final String AGGREGATE_TYPE = "Order";
+
+    private final OutboxRepository repository;
+    private final MessageSerde serde;
+
+    public OutboxWriter(OutboxRepository repository, MessageSerde serde) {
+        this.repository = repository;
+        this.serde = serde;
+    }
+
+    /**
+     * @param orderId     saga id; it is the aggregate id, the correlation id and the Kafka record key.
+     * @param causationId eventId of the message that caused this one, or {@code null} for the first.
+     */
+    public String writeEvent(String eventType, String topic, String orderId, String causationId, Object payload) {
+        return write(eventType, EventEnvelope.KIND_EVENT, topic, orderId, causationId, payload);
+    }
+
+    public String writeCommand(String eventType, String topic, String orderId, String causationId, Object payload) {
+        return write(eventType, EventEnvelope.KIND_COMMAND, topic, orderId, causationId, payload);
+    }
+
+    private String write(String eventType, String kind, String topic, String orderId, String causationId, Object payload) {
+        String eventId = UUID.randomUUID().toString();
+        EventEnvelope envelope = new EventEnvelope(
+                eventId,
+                eventType,
+                kind,
+                EventEnvelope.CURRENT_SCHEMA_VERSION,
+                OffsetDateTime.now(ZoneOffset.UTC),
+                KafkaTopics.SOURCE,
+                AGGREGATE_TYPE,
+                orderId,
+                orderId,
+                causationId,
+                serde.toTree(payload));
+        repository.persist(OutboxEventEntity.pending(
+                eventId, AGGREGATE_TYPE, orderId, eventType, kind, topic, orderId, serde.toJson(envelope)));
+        return eventId;
+    }
+}

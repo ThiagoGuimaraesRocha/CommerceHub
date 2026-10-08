@@ -18,6 +18,7 @@ import com.commercehub.order.exception.DuplicateProductInOrderException;
 import com.commercehub.order.exception.UnknownProductException;
 import com.commercehub.order.infrastructure.client.ProductClient;
 import com.commercehub.order.infrastructure.client.ProductSnapshotResponse;
+import com.commercehub.order.infrastructure.messaging.outbox.OutboxWriter;
 import com.commercehub.order.infrastructure.persistence.OrderRepository;
 import com.commercehub.order.mapper.OrderMapper;
 import java.math.BigDecimal;
@@ -39,6 +40,9 @@ class OrderApplicationServiceTest {
     @Mock
     ProductClient productClient;
 
+    @Mock
+    OutboxWriter outboxWriter;
+
     OrderApplicationService service;
 
     @BeforeEach
@@ -50,6 +54,7 @@ class OrderApplicationServiceTest {
                 new OrderCalculator(),
                 transitions,
                 new OrderCancellationService(transitions),
+                outboxWriter,
                 productClient);
     }
 
