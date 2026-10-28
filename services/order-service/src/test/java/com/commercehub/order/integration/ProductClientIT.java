@@ -53,7 +53,7 @@ class ProductClientIT {
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody("""
-                                {"id":"%s","sku":"KB-001","name":"Keyboard","price":10.5000,"currencyCode":"BRL","active":true}
+                                {"id":"%s","sku":"KB-001","name":"Keyboard","description":"A keyboard","categoryCode":"PERIPHERALS","price":10.5000,"currencyCode":"BRL","active":true,"version":0,"createdAt":"2026-10-26T19:38:40.690841Z","updatedAt":"2026-10-26T19:38:40.690872Z"}
                                 """.formatted(id))));
 
         ProductSnapshotResponse product = productClient.getById(id);
