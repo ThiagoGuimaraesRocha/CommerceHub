@@ -119,7 +119,9 @@ or `PAYMENT_FAILED`. The `OUTBOX_EVENTS` and `PROCESSED_EVENTS` tables already e
 
 ## Quick start
 
-Prerequisites: JDK 21+, Docker Engine 24+ with Compose v2, about 6 GB of free RAM.
+Prerequisites: JDK 21+, Docker Engine 24+ with Compose v2, Python 3 on `PATH` as `python3`
+(`scripts/seed.sh`), about 6 GB of free RAM. On Windows, Docker Desktop plus Git Bash is enough;
+WSL2 is optional ([Windows](#windows)).
 
 ```bash
 git clone https://github.com/ThiagoGuimaraesRocha/CommerceHub.git
@@ -134,6 +136,34 @@ curl 'http://localhost:8082/api/v1/products?category=PERIPHERALS'
 ```
 
 Swagger UI: <http://localhost:8082/q/swagger-ui>
+
+### Windows
+
+Docker Desktop (Linux containers) runs the Compose stack on Windows. Git Bash is enough to run the
+shell scripts. WSL2 is an alternative shell for the same commands, not a second stack.
+
+1. Install Docker Desktop and leave the Linux engine enabled.
+2. Install Git for Windows and add its `bin` directory to `PATH`, so `bash` is available in PowerShell
+   and in Git Bash.
+3. Install Python 3 and confirm `python3` is the real interpreter. The Microsoft Store execution alias
+   does not satisfy `scripts/seed.sh`.
+4. Clone the repository. `.gitattributes` keeps `*.sh`, `mvnw` and the seed files in LF. The Oracle
+   image executes `infra/oracle/init/01-create-service-schemas.sh` through its shebang; a CRLF checkout
+   turns that into `#!/bin/bash\r`, the script never runs, and the service schemas are not created.
+
+From Git Bash, run the Quick start above. With [Docker Desktop's WSL integration](https://docs.docker.com/desktop/features/wsl/)
+enabled, the same commands work inside a WSL2 distro.
+
+Oracle stores the `.env` passwords only on its first start. If the services stay unhealthy and the logs
+show `ORA-01017`, the volume was initialized without those schemas. Recreate it and start again:
+
+```bash
+docker compose --profile apps down -v
+docker compose --profile apps up -d
+```
+
+Local OpenShift (`./scripts/up.sh`) still needs Linux with rootful Podman. On Windows, run that script
+inside WSL2. The Compose quick start does not.
 
 ### Development mode (live reload)
 
@@ -176,7 +206,8 @@ Jaeger UI: <http://localhost:16686> · Prometheus: <http://localhost:9090> · Gr
 
 ### Local OpenShift
 
-Linux + rootful Podman. Oracle and Kafka stay in Compose; the four services run in MicroShift.
+Linux with rootful Podman. On Windows, run this path inside WSL2. Oracle and Kafka stay in Compose;
+the four services run in MicroShift.
 
 ```bash
 ./scripts/up.sh

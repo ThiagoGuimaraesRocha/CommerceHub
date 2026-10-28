@@ -1,0 +1,9 @@
+# Scripts and seed payloads are executed or posted as-is from a Windows checkout.
+# Force LF so core.autocrlf=true cannot turn the Oracle init shebang into
+# #!/bin/bash\r (the container then never creates the service schemas).
+*.sh text eol=lf
+mvnw text eol=lf
+*.Dockerfile text eol=lf
+Dockerfile text eol=lf
+.env.example text eol=lf
+*.ndjson text eol=lf
